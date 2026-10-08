@@ -327,7 +327,7 @@ const mb=document.getElementById('mute');
 mb.onclick=()=>{muted=!muted;mb.textContent='Som: '+(muted?'desligado':'ligado');mb.setAttribute('aria-pressed',muted);};
 
 // ---------- Ranking compartilhado ----------
-const RANKING_URL='ranking.php'; // mesmo diretório do index.html
+const RANKING_URL='/api/ranking';
 const nameIn=document.getElementById('pilot-name'),list=document.getElementById('board-list'),status=document.getElementById('board-status');
 try{nameIn.value=localStorage.getItem('voa-dumont-name')||''}catch(e){}
 nameIn.addEventListener('change',()=>{nameIn.value=nameIn.value.trim().slice(0,16);try{localStorage.setItem('voa-dumont-name',nameIn.value)}catch(e){}});
