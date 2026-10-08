@@ -352,18 +352,53 @@ async function loadBoard(){
     board=(await r.json()).top||[];status.textContent='';renderBoard();
   }catch(e){status.textContent='Ranking indisponível no momento. Seu recorde local continua salvo.';}
 }
-async function submitScore(score){
+// Recorde pendente: fica salvo no navegador até o servidor confirmar o recebimento.
+const PKEY='voa-dumont-pending';
+function getPending(){try{return JSON.parse(localStorage.getItem(PKEY)||'null')}catch(e){return null}}
+function setPending(p){try{p?localStorage.setItem(PKEY,JSON.stringify(p)):localStorage.removeItem(PKEY)}catch(e){}}
+let sending=false,retries=0,retryTimer=null;
+async function trySend(){
+  const p=getPending();
+  if(!p||sending)return;
+  sending=true;clearTimeout(retryTimer);
+  let retry=false;
+  try{
+    const r=await fetch(RANKING_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok){
+      const now=getPending();
+      if(now&&now.name===p.name&&now.score===p.score)setPending(null);
+      retries=0;board=j.top||board;renderBoard();
+      status.textContent=j.improved?'Recorde de '+p.score+' registrado no ranking!':'';
+    }else if(r.status===400){
+      setPending(null);status.textContent=j.error||'Recorde recusado pelo servidor.';
+    }else{
+      retry=true;status.textContent=(j.error||'Não foi possível enviar agora.')+' Tentando de novo…';
+    }
+  }catch(e){retry=true;status.textContent='Sem conexão com o ranking. Seu recorde será enviado assim que possível.';}
+  sending=false;
+  if(retry&&retries<8){retries++;retryTimer=setTimeout(trySend,4000*retries);}
+  else if(getPending()&&!retry)trySend(); // chegou um recorde novo durante o envio
+}
+function submitScore(score){
   const name=nameIn.value.trim();
   if(score<1)return;
   if(!name){status.textContent='Coloque seu nome acima para entrar no ranking.';return;}
-  try{
-    const r=await fetch(RANKING_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,score})});
-    const j=await r.json();
-    if(!r.ok)throw new Error(j.error||'');
-    board=j.top||[];status.textContent=j.improved?'Recorde registrado no ranking!':'';renderBoard();
-  }catch(e){status.textContent=e.message||'Não foi possível enviar o recorde agora.';}
+  const p=getPending();
+  if(!p||p.name.toLowerCase()!==name.toLowerCase()||score>p.score)setPending({name,score});
+  retries=0;trySend();
 }
-loadBoard();
+// Ao abrir: reenvia o melhor recorde local uma vez (recupera envios que falharam em versões anteriores)
+(function syncLocalBest(){
+  const name=nameIn.value.trim();let synced=0;
+  try{synced=+localStorage.getItem('voa-dumont-synced')||0}catch(e){}
+  if(name&&best>synced){
+    const p=getPending();
+    if(!p||best>p.score)setPending({name,score:best});
+    try{localStorage.setItem('voa-dumont-synced',best)}catch(e){}
+  }
+})();
+loadBoard().then(trySend);
 setInterval(()=>{if(S.state!=='play')loadBoard();},30000);
 
 // ---------- Loop ----------
