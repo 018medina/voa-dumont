@@ -78,12 +78,11 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Pontuação inválida.' });
     }
 
-    // Limite de frequência por IP (guardado só como hash)
-    const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'x';
-    const ipKey = 'voa-dumont:rl:' + crypto.createHash('sha256').update(ip).digest('hex').slice(0, 32);
+    // Limite de frequência por NOME (não por IP: no escritório todos saem pelo mesmo IP)
     const key = name.toLowerCase();
+    const rlKey = 'voa-dumont:rl:' + crypto.createHash('sha256').update(key).digest('hex').slice(0, 32);
 
-    const [rl] = await redis([['SET', ipKey, '1', 'EX', MIN_GAP_S, 'NX']]);
+    const [rl] = await redis([['SET', rlKey, '1', 'EX', MIN_GAP_S, 'NX']]);
     if (rl !== 'OK') {
       return res.status(429).json({ error: 'Calma, comandante! Aguarde uns segundos e tente de novo.' });
     }
