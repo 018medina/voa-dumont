@@ -41,6 +41,20 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
 .seg button:disabled{opacity:.5;cursor:not-allowed}
 button:focus-visible{outline:2px solid var(--beacon);outline-offset:2px}
 .hint{font-size:.85rem;color:var(--muted);margin:0;line-height:1.5}
+.pilot{display:flex;flex-direction:column;gap:6px;flex:1 1 100%}
+.pilot input{font-family:var(--ui);font-size:1rem;color:var(--ink);background:var(--night);border:1px solid var(--edge);border-radius:4px;padding:8px 10px;width:100%;box-sizing:border-box}
+.pilot input:focus{outline:2px solid var(--beacon);outline-offset:1px}
+.board{background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.board-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.board h2{font-family:var(--display);font-size:.95rem;margin:0;color:var(--beacon);letter-spacing:.06em}
+.board ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.board li{display:grid;grid-template-columns:2.2em 1fr auto;gap:8px;align-items:center;padding:6px 8px;background:var(--night);border-radius:4px;font-variant-numeric:tabular-nums}
+.board li .pos{font-family:var(--display);color:var(--muted)}
+.board li:first-child .pos{color:var(--beacon)}
+.board li .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board li .sc{font-family:var(--display);color:var(--ink)}
+.board li.me{outline:1px solid var(--beacon)}
+.board .status{font-size:.82rem;color:var(--muted);margin:0}
 .hint kbd{font-family:var(--display);font-size:.72rem;color:var(--ink);background:var(--panel);border:1px solid var(--edge);border-radius:3px;padding:1px 5px}
 </style>
 <style>body{margin:0}</style>
@@ -54,6 +68,10 @@ button:focus-visible{outline:2px solid var(--beacon);outline-offset:2px}
   </header>
   <div class="screen"><canvas id="game" width="400" height="600" aria-label="Jogo: desvie das torres e nuvens de tempestade"></canvas></div>
   <div class="strip">
+    <label class="pilot" for="pilot-name">
+      <span class="label">Nome do piloto (para o ranking)</span>
+      <input id="pilot-name" maxlength="16" autocomplete="nickname" placeholder="Ex.: Fábio">
+    </label>
     <div style="display:flex;flex-direction:column;gap:6px">
       <span class="label">Aeronave</span>
       <div class="seg" role="group" aria-label="Escolha a aeronave">
@@ -63,6 +81,14 @@ button:focus-visible{outline:2px solid var(--beacon);outline-offset:2px}
     </div>
     <button class="mute" id="mute" aria-pressed="false">Som: ligado</button>
   </div>
+  <section class="board" aria-labelledby="board-title">
+    <div class="board-head">
+      <h2 id="board-title">Top 5 da tripulação</h2>
+      <span class="label">obstáculos</span>
+    </div>
+    <ol id="board-list"></ol>
+    <p class="status" id="board-status">Carregando ranking…</p>
+  </section>
   <p class="hint">Toque na tela, <kbd>Espaço</kbd> ou <kbd>↑</kbd> para ganhar altitude. Passe entre as nuvens de tempestade e as torres. O helicóptero é mais leve e mais fácil de controlar; o avião é mais rápido de reagir.</p>
 </div>
 
@@ -284,7 +310,9 @@ function flap(){
 cv.addEventListener('pointerdown',e=>{e.preventDefault();flap();});
 addEventListener('keydown',e=>{
   if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'){
-    if(document.activeElement&&document.activeElement.tagName==='BUTTON'&&e.code==='Space')return;
+    const tag=document.activeElement&&document.activeElement.tagName;
+    if(tag==='INPUT')return;
+    if(tag==='BUTTON'&&e.code==='Space')return;
     e.preventDefault();flap();
   }
 });
@@ -298,10 +326,51 @@ bP.onclick=()=>pick('plane');bH.onclick=()=>pick('heli');
 const mb=document.getElementById('mute');
 mb.onclick=()=>{muted=!muted;mb.textContent='Som: '+(muted?'desligado':'ligado');mb.setAttribute('aria-pressed',muted);};
 
+// ---------- Ranking compartilhado ----------
+const RANKING_URL='ranking.php'; // mesmo diretório do index.html
+const nameIn=document.getElementById('pilot-name'),list=document.getElementById('board-list'),status=document.getElementById('board-status');
+try{nameIn.value=localStorage.getItem('voa-dumont-name')||''}catch(e){}
+nameIn.addEventListener('change',()=>{nameIn.value=nameIn.value.trim().slice(0,16);try{localStorage.setItem('voa-dumont-name',nameIn.value)}catch(e){}});
+nameIn.addEventListener('keydown',e=>{if(e.key==='Enter')nameIn.blur();});
+let board=[];
+function renderBoard(){
+  list.textContent='';
+  const me=nameIn.value.trim().toLowerCase();
+  board.forEach((r,i)=>{
+    const li=document.createElement('li');if(me&&r.name.toLowerCase()===me)li.className='me';
+    const p=document.createElement('span');p.className='pos';p.textContent=(i+1)+'º';
+    const n=document.createElement('span');n.className='nm';n.textContent=r.name;
+    const s=document.createElement('span');s.className='sc';s.textContent=r.score;
+    li.append(p,n,s);list.append(li);
+  });
+  if(!board.length)status.textContent='Ninguém pontuou ainda. Seja o primeiro comandante!';
+}
+async function loadBoard(){
+  try{
+    const r=await fetch(RANKING_URL,{cache:'no-store'});
+    if(!r.ok)throw 0;
+    board=(await r.json()).top||[];status.textContent='';renderBoard();
+  }catch(e){status.textContent='Ranking indisponível no momento. Seu recorde local continua salvo.';}
+}
+async function submitScore(score){
+  const name=nameIn.value.trim();
+  if(score<1)return;
+  if(!name){status.textContent='Coloque seu nome acima para entrar no ranking.';return;}
+  try{
+    const r=await fetch(RANKING_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,score})});
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error||'');
+    board=j.top||[];status.textContent=j.improved?'Recorde registrado no ranking!':'';renderBoard();
+  }catch(e){status.textContent=e.message||'Não foi possível enviar o recorde agora.';}
+}
+loadBoard();
+setInterval(()=>{if(S.state!=='play')loadBoard();},30000);
+
 // ---------- Loop ----------
 function crash(){
   S.state='over';S.overT=0;sfx.crash();
   if(S.score>best){best=S.score;S.newBest=true;try{localStorage.setItem('voa-dumont-best',best)}catch(e){}}
+  submitScore(S.score);
   syncButtons();
 }
 function update(dt){
