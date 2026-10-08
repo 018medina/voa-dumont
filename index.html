@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="description" content="Voa, Dumont! Mini game de aviação: desvie das torres e nuvens de tempestade.">
 <title>Voa, Dumont!</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,6 +23,11 @@
   color-scheme:dark;
 }
 html,body{height:100%}
+/* iOS Safari: sem zoom por toque duplo, sem seleção de texto nem menu de toque longo durante o jogo */
+html,body,*{touch-action:manipulation}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+input{-webkit-user-select:text;user-select:text}
+canvas{touch-action:none}
 body{background:var(--night);color:var(--ink);font-family:var(--ui);font-size:15px;
   display:flex;justify-content:center;align-items:flex-start;padding-inline:16px;padding-block:16px;box-sizing:border-box}
 .console{width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px}
@@ -31,7 +36,7 @@ h1{font-family:var(--display);font-weight:700;font-size:1.6rem;margin:0;letter-s
 .reg{font-family:var(--display);font-size:.75rem;color:var(--muted);letter-spacing:.12em}
 .screen{position:relative;border:3px solid var(--edge);border-radius:6px;overflow:hidden;background:#000;
   box-shadow:0 0 0 6px var(--panel), 0 12px 32px rgba(0,0,0,.5)}
-canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:manipulation;cursor:pointer}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;cursor:pointer}
 .strip{background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .label{font-family:var(--display);font-size:.7rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
 .seg{display:flex;gap:6px}
@@ -308,6 +313,17 @@ function flap(){
   syncButtons();
 }
 cv.addEventListener('pointerdown',e=>{e.preventDefault();flap();});
+// iOS Safari ignora parte das travas de zoom: cancela os gestos de toque no jogo
+['touchstart','touchend','touchmove','dblclick'].forEach(t=>cv.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+// Toque duplo rápido fora do canvas (bordas, painel) também não deve dar zoom
+let lastTouchEnd=0;
+document.addEventListener('touchend',e=>{
+  const now=Date.now();
+  if(now-lastTouchEnd<350&&!(e.target.closest&&e.target.closest('input')))e.preventDefault();
+  lastTouchEnd=now;
+},{passive:false});
+// Pinça (zoom com dois dedos) no Safari
+['gesturestart','gesturechange'].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
 addEventListener('keydown',e=>{
   if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'){
     const tag=document.activeElement&&document.activeElement.tagName;
