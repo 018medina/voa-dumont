@@ -32,7 +32,7 @@
     />
 
     <!-- Prévia ao compartilhar (WhatsApp, Teams, Slack, LinkedIn...) -->
-    <!-- TROQUE "https://voa-dumont.vercel.app" pelo endereço real do site para a imagem aparecer no WhatsApp -->
+    <!-- TROQUE "https://SEU-DOMINIO" pelo endereço real do site para a imagem aparecer no WhatsApp -->
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="pt_BR" />
     <meta property="og:site_name" content="Voa, Dumont!" />
@@ -41,10 +41,10 @@
       property="og:description"
       content="Desvie das torres e das nuvens de tempestade de avião ou helicóptero. Quem entra no Top 5?"
     />
-    <meta property="og:url" content="https://voa-dumont.vercel.app/" />
+    <meta property="og:url" content="https://voadumont.fabiomedina.com.br/" />
     <meta
       property="og:image"
-      content="https://voa-dumont.vercel.app/og-image.png"
+      content="https://voadumont.fabiomedina.com.br/og-image.png"
     />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -60,7 +60,7 @@
     />
     <meta
       name="twitter:image"
-      content="https://voa-dumont.vercel.app/og-image.png"
+      content="https://voadumont.fabiomedina.com.br/og-image.png"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -114,9 +114,14 @@
         display: flex;
         justify-content: center;
         align-items: flex-start;
-        padding-inline: 16px;
-        padding-block: 16px;
         box-sizing: border-box;
+        /* Área segura do iPhone (relógio, Dynamic Island, barra inferior) + 16px de respiro */
+        padding-top: calc(16px + env(safe-area-inset-top, 0px));
+        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        padding-left: calc(16px + env(safe-area-inset-left, 0px));
+        padding-right: calc(16px + env(safe-area-inset-right, 0px));
+        min-height: 100%;
+        height: auto;
       }
       .console {
         width: 100%;
@@ -378,6 +383,90 @@
         cursor: pointer;
         padding: 2px 0;
       }
+      .skins-wrap {
+        flex: 1 1 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+      }
+      .skins-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .skins {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .skin {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 4px 6px;
+        background: var(--night);
+        border: 1px solid var(--edge);
+        border-radius: 4px;
+        color: var(--ink);
+        font-family: var(--ui);
+        font-size: 0.78rem;
+        cursor: pointer;
+        min-width: 0;
+      }
+      .skin canvas {
+        width: 60px;
+        height: auto;
+        image-rendering: pixelated;
+        touch-action: manipulation;
+        cursor: inherit;
+      }
+      .skin .sn {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .skin[aria-checked="true"] {
+        border-color: var(--beacon);
+        box-shadow: inset 0 0 0 1px var(--beacon);
+      }
+      .skin[aria-checked="true"] .sn {
+        color: var(--beacon);
+        font-weight: 600;
+      }
+      .skin.locked {
+        cursor: not-allowed;
+      }
+      .skin.locked canvas {
+        filter: brightness(0) opacity(0.35);
+      }
+      .skin.locked .sn {
+        color: var(--muted);
+      }
+      .skin .req {
+        font-family: var(--display);
+        font-size: 0.6rem;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+      }
+      .skin .new {
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        font-family: var(--display);
+        font-size: 0.55rem;
+        background: var(--beacon);
+        color: var(--night);
+        padding: 1px 4px;
+        border-radius: 2px;
+      }
+      .skin:disabled:not(.locked) {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
       .pilot input.needs-name {
         outline: 2px solid var(--beacon);
         outline-offset: 1px;
@@ -450,6 +539,18 @@
           </div>
         </div>
         <button class="mute" id="mute" aria-pressed="false">Som: ligado</button>
+        <div class="skins-wrap">
+          <div class="skins-head">
+            <span class="label">Pintura</span>
+            <span class="label" id="skins-count"></span>
+          </div>
+          <div
+            class="skins"
+            id="skins"
+            role="radiogroup"
+            aria-label="Escolha a pintura da aeronave"
+          ></div>
+        </div>
       </div>
       <section class="board" aria-labelledby="board-title">
         <div class="board-head">
@@ -487,20 +588,139 @@
           o: "#c9761f",
           m: "#2b2f36",
         };
-        function sprite(rows, s = 2) {
+        function sprite(rows, s = 2, pal = PAL) {
           const c = document.createElement("canvas");
           c.width = rows[0].length * s;
           c.height = rows.length * s;
           const x = c.getContext("2d");
           rows.forEach((r, j) =>
             [...r].forEach((ch, i) => {
-              if (PAL[ch]) {
-                x.fillStyle = PAL[ch];
+              if (pal[ch]) {
+                x.fillStyle = pal[ch];
                 x.fillRect(i * s, j * s, s, s);
               }
             }),
           );
           return c;
+        }
+        const PLANE_ROWS = [
+          "rrr.................",
+          "rrrr................",
+          ".rrrr...............",
+          ".rrrrrwwwwwwwwwwww..",
+          "wwwwwwwwwwwwwwwwwkkw",
+          "wbbbbbbbbbbbbbbbbbbw",
+          "wwwwwwwwwwwwwwwwwwww",
+          ".gwwwwwwwwwwwwwwwwg.",
+          "......dddddddd......",
+        ];
+        const HELI_ROWS = [
+          "..........m.........",
+          ".........ddd........",
+          ".......yyyyyyy......",
+          "y.....yyyyyyyykk....",
+          "yy...yyyyyyyyykkk...",
+          "yyyyyyyyyyyyyyyyyk..",
+          "y....yyyyyyyyyyyy...",
+          ".......oooooooo.....",
+          ".........d....d.....",
+          ".......dddddddddd...",
+        ];
+        // ---------- Pinturas (liberadas pelo recorde pessoal) ----------
+        // Avião: r = deriva/cauda, w = fuselagem, b = faixa, k = janelas, g/d = trem de pouso
+        // Helicóptero: y = fuselagem, o = faixa, k = janelas, d = esquis, m = cubo do rotor
+        const SKINS = {
+          plane: [
+            { id: "classico", name: "Clássico", at: 0, pal: {} },
+            {
+              id: "ceu-azul",
+              name: "Céu Azul",
+              at: 10,
+              pal: { r: "#1f4e8c", b: "#f2b632" },
+            },
+            {
+              id: "agricola",
+              name: "Agrícola",
+              at: 20,
+              pal: { w: "#f2c230", r: "#2f6b3a", b: "#2f6b3a", g: "#3b4049" },
+            },
+            {
+              id: "militar",
+              name: "Militar",
+              at: 35,
+              pal: {
+                w: "#6b7350",
+                r: "#4b5238",
+                b: "#3b4029",
+                k: "#c9a64a",
+                g: "#3b4029",
+              },
+            },
+            {
+              id: "executivo",
+              name: "Jato Executivo",
+              at: 50,
+              pal: {
+                w: "#23262d",
+                r: "#c9a64a",
+                b: "#c9a64a",
+                k: "#9fd8ec",
+                g: "#5a5f6b",
+              },
+              trail: "contrail",
+            },
+            {
+              id: "acrobatico",
+              name: "Acrobático",
+              at: 75,
+              pal: { w: "#d6402f", r: "#f4f1e8", b: "#f4f1e8", g: "#f4f1e8" },
+              trail: "smoke",
+            },
+          ],
+          heli: [
+            { id: "resgate", name: "Resgate", at: 0, pal: {} },
+            {
+              id: "policia",
+              name: "Polícia",
+              at: 15,
+              pal: { y: "#1f3f73", o: "#f4f1e8" },
+            },
+            {
+              id: "bombeiros",
+              name: "Bombeiros",
+              at: 30,
+              pal: { y: "#c8322b", o: "#f2b632" },
+            },
+            {
+              id: "aeromedico",
+              name: "Aeromédico",
+              at: 45,
+              pal: { y: "#f4f1e8", o: "#c8322b", k: "#7fd1e8" },
+            },
+            {
+              id: "noturno",
+              name: "Noturno",
+              at: 60,
+              pal: { y: "#2b2f36", o: "#3b8f5a", k: "#5fd18a", d: "#1b1e23" },
+              trail: "contrail",
+            },
+            {
+              id: "ouro",
+              name: "Ouro",
+              at: 100,
+              pal: { y: "#e0b23a", o: "#8a6a1c", k: "#fff2c2", d: "#8a6a1c" },
+              trail: "sparkle",
+            },
+          ],
+        };
+        const ROWS = { plane: PLANE_ROWS, heli: HELI_ROWS };
+        const skinImg = {};
+        function getSkinImg(craft, skin, scale = 2) {
+          const k = craft + ":" + skin.id + ":" + scale;
+          return (
+            skinImg[k] ||
+            (skinImg[k] = sprite(ROWS[craft], scale, { ...PAL, ...skin.pal }))
+          );
         }
         const PLANE = sprite([
           "rrr.................",
@@ -549,6 +769,22 @@
           best = +localStorage.getItem("voa-dumont-best") || 0;
         } catch (e) {}
         let craftKey = "plane";
+        try {
+          if (localStorage.getItem("voa-dumont-craft") === "heli")
+            craftKey = "heli";
+        } catch (e) {}
+        const skinSel = { plane: "classico", heli: "resgate" };
+        try {
+          for (const c in skinSel) {
+            const v = localStorage.getItem("voa-dumont-skin-" + c);
+            if (v) skinSel[c] = v;
+          }
+        } catch (e) {}
+        const unlocked = (sk) => best >= sk.at;
+        function curSkin(c = craftKey) {
+          const s = SKINS[c].find((s) => s.id === skinSel[c]);
+          return s && unlocked(s) ? s : SKINS[c][0];
+        }
         const S = {
           state: "menu",
           t: 0,
@@ -564,6 +800,8 @@
           cloudX: 0,
           flash: 0,
           pops: [],
+          trail: [],
+          unlockedNow: [],
         };
 
         function reset() {
@@ -576,6 +814,8 @@
           S.overT = 0;
           S.newBest = false;
           S.pops = [];
+          S.trail = [];
+          S.unlockedNow = [];
         }
 
         // ---------- Cenário ----------
@@ -789,9 +1029,73 @@
 
         // ---------- Aeronave ----------
         const PX = 96;
+        // Rastro das pinturas especiais
+        function updateTrail(dt) {
+          const sk = curSkin();
+          S.trail.forEach((p) => {
+            p.x -= (S.state === "play" ? S.speed : 90) * dt;
+            p.t -= dt;
+            p.y += p.vy * dt;
+          });
+          S.trail = S.trail.filter((p) => p.t > 0 && p.x > -20);
+          if (!sk.trail || S.state === "over") return;
+          S.trailAcc = (S.trailAcc || 0) + dt;
+          const every = sk.trail === "sparkle" ? 0.05 : 0.03;
+          while (S.trailAcc > every) {
+            S.trailAcc -= every;
+            const tailX = PX - (craftKey === "plane" ? 20 : 22),
+              tailY = S.y + (craftKey === "plane" ? 1 : -2);
+            if (sk.trail === "smoke")
+              S.trail.push({
+                x: tailX,
+                y: tailY + (Math.random() * 4 - 2),
+                vy: -6,
+                t: 1.1,
+                max: 1.1,
+                kind: "smoke",
+              });
+            else if (sk.trail === "contrail")
+              S.trail.push({
+                x: tailX,
+                y: tailY,
+                vy: 0,
+                t: 0.7,
+                max: 0.7,
+                kind: "contrail",
+              });
+            else
+              S.trail.push({
+                x: tailX,
+                y: tailY + (Math.random() * 10 - 5),
+                vy: Math.random() * 20 - 10,
+                t: 0.6,
+                max: 0.6,
+                kind: "sparkle",
+              });
+          }
+        }
+        function drawTrail() {
+          S.trail.forEach((p) => {
+            const a = p.t / p.max;
+            if (p.kind === "smoke") {
+              const r = 4 + (1 - a) * 9;
+              ctx.fillStyle = `rgba(250,250,250,${0.75 * a})`;
+              ctx.fillRect(p.x - r / 2, p.y - r / 2, r, r);
+            } else if (p.kind === "contrail") {
+              ctx.fillStyle = `rgba(255,255,255,${0.45 * a})`;
+              ctx.fillRect(p.x - 3, p.y - 1, 6, 2);
+            } else {
+              ctx.fillStyle =
+                Math.floor(p.t * 20) % 2
+                  ? `rgba(255,226,120,${a})`
+                  : `rgba(255,255,255,${a})`;
+              ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+            }
+          });
+        }
         function drawCraft() {
           const c = CRAFT[craftKey],
-            img = c.img;
+            img = getSkinImg(craftKey, curSkin());
           let ang = Math.max(-0.45, Math.min(1.1, S.vy / 650));
           if (craftKey === "heli") ang *= 0.35;
           if (S.state === "menu") ang = Math.sin(S.t * 3) * 0.06;
@@ -883,6 +1187,11 @@
             noise(0.6, 0.22);
             tone(220, 0.5, "sawtooth", 0.05, -170);
           },
+          unlock: () => {
+            [523, 659, 784, 1047].forEach((f, i) =>
+              tone(f, 0.14, "square", 0.04, 0, 0.55 + i * 0.11),
+            );
+          },
         };
 
         // ---------- Brevê ----------
@@ -954,14 +1263,84 @@
         function pick(k) {
           if (S.state === "play") return;
           craftKey = k;
+          S.trail = [];
+          try {
+            localStorage.setItem("voa-dumont-craft", k);
+          } catch (e) {}
           syncButtons();
+          renderSkins();
         }
         function syncButtons() {
           bP.setAttribute("aria-pressed", craftKey === "plane");
           bH.setAttribute("aria-pressed", craftKey === "heli");
           bP.disabled = bH.disabled = S.state === "play";
           reg.textContent = CRAFT[craftKey].reg;
+          document
+            .querySelectorAll(".skin:not(.locked)")
+            .forEach((b) => (b.disabled = S.state === "play"));
         }
+        // ---------- Seletor de pinturas ----------
+        const skinsEl = document.getElementById("skins"),
+          skinsCount = document.getElementById("skins-count");
+        let seen = {};
+        try {
+          seen = JSON.parse(localStorage.getItem("voa-dumont-seen") || "{}");
+        } catch (e) {}
+        function renderSkins() {
+          const list = SKINS[craftKey],
+            cur = curSkin();
+          skinsEl.textContent = "";
+          list.forEach((sk) => {
+            const open = unlocked(sk),
+              key = craftKey + ":" + sk.id;
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "skin" + (open ? "" : " locked");
+            b.setAttribute("role", "radio");
+            b.setAttribute("aria-checked", sk.id === cur.id);
+            b.setAttribute(
+              "aria-label",
+              open ? sk.name : sk.name + ", bloqueada, recorde " + sk.at,
+            );
+            const img = getSkinImg(craftKey, sk, 3),
+              cv2 = document.createElement("canvas");
+            cv2.width = img.width;
+            cv2.height = img.height;
+            cv2.getContext("2d").drawImage(img, 0, 0);
+            const n = document.createElement("span");
+            n.className = "sn";
+            n.textContent = open ? sk.name : "???";
+            b.append(cv2, n);
+            if (!open) {
+              const r = document.createElement("span");
+              r.className = "req";
+              r.textContent = "Recorde " + sk.at;
+              b.append(r);
+              b.disabled = true;
+            } else if (sk.at > 0 && !seen[key]) {
+              const nw = document.createElement("span");
+              nw.className = "new";
+              nw.textContent = "NOVA";
+              b.append(nw);
+            }
+            if (open) b.disabled = S.state === "play";
+            b.onclick = () => {
+              if (!open || S.state === "play") return;
+              skinSel[craftKey] = sk.id;
+              seen[key] = 1;
+              S.trail = [];
+              try {
+                localStorage.setItem("voa-dumont-skin-" + craftKey, sk.id);
+                localStorage.setItem("voa-dumont-seen", JSON.stringify(seen));
+              } catch (e) {}
+              renderSkins();
+            };
+            skinsEl.append(b);
+          });
+          const n = list.filter(unlocked).length;
+          skinsCount.textContent = n + " de " + list.length + " liberadas";
+        }
+        renderSkins();
         bP.onclick = () => pick("plane");
         bH.onclick = () => pick("heli");
         const mb = document.getElementById("mute");
@@ -1207,17 +1586,29 @@
           S.overT = 0;
           sfx.crash();
           if (S.score > best) {
+            const prev = best;
             best = S.score;
             S.newBest = true;
             try {
               localStorage.setItem("voa-dumont-best", best);
             } catch (e) {}
+            // Pinturas liberadas nesta partida
+            S.unlockedNow = [];
+            for (const c in SKINS)
+              SKINS[c].forEach((sk) => {
+                if (sk.at > prev && sk.at <= best) S.unlockedNow.push(sk);
+              });
+            if (S.unlockedNow.length) {
+              sfx.unlock();
+              renderSkins();
+            }
           }
           submitScore(S.score);
           syncButtons();
         }
         function update(dt) {
           S.t += dt;
+          updateTrail(dt);
           const c = CRAFT[craftKey];
           if (S.state === "menu") {
             S.y = H / 2 + 50 + Math.sin(S.t * 2.2) * 10;
@@ -1338,7 +1729,7 @@
               [
                 { s: "VOA, DUMONT!", z: 24, c: "#f2b632" },
                 {
-                  s: CRAFT[craftKey].name + " · " + CRAFT[craftKey].reg,
+                  s: CRAFT[craftKey].name + " · " + curSkin().name,
                   z: 12,
                   c: "#93a6c2",
                 },
@@ -1374,6 +1765,19 @@
                   z: 12,
                   c: S.newBest ? "#ffe066" : "#93a6c2",
                 },
+                ...(S.unlockedNow.length
+                  ? [
+                      {
+                        s:
+                          (S.unlockedNow.length > 1
+                            ? "Novas pinturas: "
+                            : "Nova pintura: ") +
+                          S.unlockedNow.map((k) => k.name).join(", "),
+                        z: S.unlockedNow.length > 1 ? 10 : 12,
+                        c: "#7fd1e8",
+                      },
+                    ]
+                  : []),
                 {
                   s: S.overT > 0.6 ? "Toque para voar de novo" : " ",
                   z: 12,
@@ -1390,6 +1794,7 @@
             drawCloud(o);
             o.type === "torre" ? drawTower(o) : drawMast(o);
           });
+          drawTrail();
           drawCraft();
           hud();
           overlays();
