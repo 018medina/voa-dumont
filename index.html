@@ -1,508 +1,1410 @@
 <!doctype html>
 <html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="description" content="Voa, Dumont! Mini game de aviação: desvie das torres e nuvens de tempestade.">
-<title>Voa, Dumont!</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Chakra+Petch:wght@400;600&display=swap">
-<script defer src="/_vercel/insights/script.js"></script>
-<style>
-/* Layout: one cockpit-style console centered — pixel-art canvas as the windscreen, instrument strip below with aircraft selector and controls. Single committed "fim de tarde no aeroporto" look. */
-:root{
-  --night:#0f1d33;      /* page ground, céu noturno */
-  --panel:#1a2b45;      /* console */
-  --edge:#2c4468;       /* bordas */
-  --ink:#e9eef6;        /* texto */
-  --muted:#93a6c2;      /* texto secundário */
-  --beacon:#f2b632;     /* âmbar de farol / destaque */
-  --red:#e0483e;
-  --display:'Silkscreen', 'Courier New', monospace;
-  --ui:'Chakra Petch', system-ui, sans-serif;
-  color-scheme:dark;
-}
-html,body{height:100%}
-/* iOS Safari: sem zoom por toque duplo, sem seleção de texto nem menu de toque longo durante o jogo */
-html,body,*{touch-action:manipulation}
-body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
-input{-webkit-user-select:text;user-select:text}
-canvas{touch-action:none}
-body{background:var(--night);color:var(--ink);font-family:var(--ui);font-size:15px;
-  display:flex;justify-content:center;align-items:flex-start;padding-inline:16px;padding-block:16px;box-sizing:border-box}
-.console{width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px}
-header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
-h1{font-family:var(--display);font-weight:700;font-size:1.6rem;margin:0;letter-spacing:.02em;color:var(--beacon);text-wrap:balance}
-.reg{font-family:var(--display);font-size:.75rem;color:var(--muted);letter-spacing:.12em}
-.screen{position:relative;border:3px solid var(--edge);border-radius:6px;overflow:hidden;background:#000;
-  box-shadow:0 0 0 6px var(--panel), 0 12px 32px rgba(0,0,0,.5)}
-canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;cursor:pointer}
-.strip{background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-.label{font-family:var(--display);font-size:.7rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
-.seg{display:flex;gap:6px}
-.seg button,.mute{font-family:var(--ui);font-weight:600;font-size:.9rem;color:var(--ink);background:var(--night);border:1px solid var(--edge);
-  border-radius:4px;padding:8px 12px;cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--beacon);color:var(--night);border-color:var(--beacon)}
-.seg button:disabled{opacity:.5;cursor:not-allowed}
-button:focus-visible{outline:2px solid var(--beacon);outline-offset:2px}
-.hint{font-size:.85rem;color:var(--muted);margin:0;line-height:1.5}
-.pilot{display:flex;flex-direction:column;gap:6px;flex:1 1 100%}
-.pilot input{font-family:var(--ui);font-size:1rem;color:var(--ink);background:var(--night);border:1px solid var(--edge);border-radius:4px;padding:8px 10px;width:100%;box-sizing:border-box}
-.pilot input:focus{outline:2px solid var(--beacon);outline-offset:1px}
-.board{background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px}
-.board-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.board h2{font-family:var(--display);font-size:.95rem;margin:0;color:var(--beacon);letter-spacing:.06em}
-.board ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
-.board li{display:grid;grid-template-columns:2.2em 1fr auto;gap:8px;align-items:center;padding:6px 8px;background:var(--night);border-radius:4px;font-variant-numeric:tabular-nums}
-.board li .pos{font-family:var(--display);color:var(--muted)}
-.board li:first-child .pos{color:var(--beacon)}
-.board li .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.board li .sc{font-family:var(--display);color:var(--ink)}
-.board li.me{outline:1px solid var(--beacon)}
-.board .status{font-size:.82rem;color:var(--muted);margin:0}
-.hint kbd{font-family:var(--display);font-size:.72rem;color:var(--ink);background:var(--panel);border:1px solid var(--edge);border-radius:3px;padding:1px 5px}
-</style>
-<style>body{margin:0}</style>
-</head>
-<body>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Voa, Dumont!</title>
+    <meta
+      name="description"
+      content="Mini game de aviação: pilote um avião ou helicóptero, desvie das torres e das nuvens de tempestade e dispute o Top 5 com a tripulação."
+    />
+    <meta name="theme-color" content="#0f1d33" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="format-detection" content="telephone=no" />
 
-<div class="console">
-  <header>
-    <h1>Voa, Dumont!</h1>
-    <span class="reg" id="reg">PP-DMT</span>
-  </header>
-  <div class="screen"><canvas id="game" width="400" height="600" aria-label="Jogo: desvie das torres e nuvens de tempestade"></canvas></div>
-  <div class="strip">
-    <label class="pilot" for="pilot-name">
-      <span class="label">Nome do piloto (para o ranking)</span>
-      <input id="pilot-name" maxlength="16" autocomplete="nickname" placeholder="Ex.: Fábio">
-    </label>
-    <div style="display:flex;flex-direction:column;gap:6px">
-      <span class="label">Aeronave</span>
-      <div class="seg" role="group" aria-label="Escolha a aeronave">
-        <button id="btn-plane" aria-pressed="true">✈ Avião</button>
-        <button id="btn-heli" aria-pressed="false">Helicóptero</button>
+    <!-- Ícones -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Tela inicial do celular (Adicionar à Tela de Início) -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Voa, Dumont!" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+
+    <!-- Prévia ao compartilhar (WhatsApp, Teams, Slack, LinkedIn...) -->
+    <!-- TROQUE "https://voa-dumont.vercel.app" pelo endereço real do site para a imagem aparecer no WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="Voa, Dumont!" />
+    <meta property="og:title" content="Voa, Dumont!" />
+    <meta
+      property="og:description"
+      content="Desvie das torres e das nuvens de tempestade de avião ou helicóptero. Quem entra no Top 5?"
+    />
+    <meta property="og:url" content="https://voa-dumont.vercel.app/" />
+    <meta
+      property="og:image"
+      content="https://voa-dumont.vercel.app/og-image.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Tela do jogo Voa, Dumont! com um avião sobrevoando a cidade ao entardecer"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Voa, Dumont!" />
+    <meta
+      name="twitter:description"
+      content="Desvie das torres e das nuvens de tempestade de avião ou helicóptero. Quem entra no Top 5?"
+    />
+    <meta
+      name="twitter:image"
+      content="https://voa-dumont.vercel.app/og-image.png"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Chakra+Petch:wght@400;600&display=swap"
+    />
+    <style>
+      /* Layout: one cockpit-style console centered — pixel-art canvas as the windscreen, instrument strip below with aircraft selector and controls. Single committed "fim de tarde no aeroporto" look. */
+      :root {
+        --night: #0f1d33; /* page ground, céu noturno */
+        --panel: #1a2b45; /* console */
+        --edge: #2c4468; /* bordas */
+        --ink: #e9eef6; /* texto */
+        --muted: #93a6c2; /* texto secundário */
+        --beacon: #f2b632; /* âmbar de farol / destaque */
+        --red: #e0483e;
+        --display: "Silkscreen", "Courier New", monospace;
+        --ui: "Chakra Petch", system-ui, sans-serif;
+        color-scheme: dark;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      /* iOS Safari: sem zoom por toque duplo, sem seleção de texto nem menu de toque longo durante o jogo */
+      html,
+      body,
+      * {
+        touch-action: manipulation;
+      }
+      body {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+      }
+      input {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      canvas {
+        touch-action: none;
+      }
+      body {
+        background: var(--night);
+        color: var(--ink);
+        font-family: var(--ui);
+        font-size: 15px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-inline: 16px;
+        padding-block: 16px;
+        box-sizing: border-box;
+      }
+      .console {
+        width: 100%;
+        max-width: 440px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 1.6rem;
+        margin: 0;
+        letter-spacing: 0.02em;
+        color: var(--beacon);
+        text-wrap: balance;
+      }
+      .reg {
+        font-family: var(--display);
+        font-size: 0.75rem;
+        color: var(--muted);
+        letter-spacing: 0.12em;
+      }
+      .screen {
+        position: relative;
+        border: 3px solid var(--edge);
+        border-radius: 6px;
+        overflow: hidden;
+        background: #000;
+        box-shadow:
+          0 0 0 6px var(--panel),
+          0 12px 32px rgba(0, 0, 0, 0.5);
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        touch-action: none;
+        cursor: pointer;
+      }
+      .strip {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 6px;
+        padding: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .label {
+        font-family: var(--display);
+        font-size: 0.7rem;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .seg {
+        display: flex;
+        gap: 6px;
+      }
+      .seg button,
+      .mute {
+        font-family: var(--ui);
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--ink);
+        background: var(--night);
+        border: 1px solid var(--edge);
+        border-radius: 4px;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      .seg button[aria-pressed="true"] {
+        background: var(--beacon);
+        color: var(--night);
+        border-color: var(--beacon);
+      }
+      .seg button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      button:focus-visible {
+        outline: 2px solid var(--beacon);
+        outline-offset: 2px;
+      }
+      .hint {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin: 0;
+        line-height: 1.5;
+      }
+      .pilot {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex: 1 1 100%;
+      }
+      .pilot input {
+        font-family: var(--ui);
+        font-size: 1rem;
+        color: var(--ink);
+        background: var(--night);
+        border: 1px solid var(--edge);
+        border-radius: 4px;
+        padding: 8px 10px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .pilot input:focus {
+        outline: 2px solid var(--beacon);
+        outline-offset: 1px;
+      }
+      .board {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 6px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .board-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .board h2 {
+        font-family: var(--display);
+        font-size: 0.95rem;
+        margin: 0;
+        color: var(--beacon);
+        letter-spacing: 0.06em;
+      }
+      .board ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .board li {
+        display: grid;
+        grid-template-columns: 2.2em 1fr auto;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 8px;
+        background: var(--night);
+        border-radius: 4px;
+        font-variant-numeric: tabular-nums;
+      }
+      .board li .pos {
+        font-family: var(--display);
+        color: var(--muted);
+      }
+      .board li:first-child .pos {
+        color: var(--beacon);
+      }
+      .board li .nm {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .board li .sc {
+        font-family: var(--display);
+        color: var(--ink);
+      }
+      .board li.me {
+        outline: 1px solid var(--beacon);
+      }
+      .board .status {
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin: 0;
+      }
+      .claim {
+        position: absolute;
+        left: 8%;
+        right: 8%;
+        bottom: 6%;
+        background: var(--panel);
+        border: 2px solid var(--beacon);
+        border-radius: 6px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        touch-action: manipulation;
+      }
+      .claim[hidden] {
+        display: none;
+      }
+      .claim p {
+        margin: 0;
+      }
+      .claim-title {
+        font-family: var(--display);
+        font-weight: 700;
+        color: var(--beacon);
+        font-size: 1rem;
+        letter-spacing: 0.04em;
+      }
+      .claim-text {
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+      .claim-row {
+        display: flex;
+        gap: 6px;
+      }
+      .claim-row input {
+        flex: 1;
+        min-width: 0;
+        font-family: var(--ui);
+        font-size: 16px;
+        color: var(--ink);
+        background: var(--night);
+        border: 1px solid var(--edge);
+        border-radius: 4px;
+        padding: 8px 10px;
+      }
+      .claim-row input:focus {
+        outline: 2px solid var(--beacon);
+        outline-offset: 1px;
+      }
+      .claim-row button {
+        font-family: var(--ui);
+        font-weight: 600;
+        font-size: 0.95rem;
+        background: var(--beacon);
+        color: var(--night);
+        border: 0;
+        border-radius: 4px;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+      .claim-skip {
+        align-self: flex-start;
+        background: none;
+        border: 0;
+        color: var(--muted);
+        font-family: var(--ui);
+        font-size: 0.85rem;
+        text-decoration: underline;
+        cursor: pointer;
+        padding: 2px 0;
+      }
+      .pilot input.needs-name {
+        outline: 2px solid var(--beacon);
+        outline-offset: 1px;
+      }
+      .hint kbd {
+        font-family: var(--display);
+        font-size: 0.72rem;
+        color: var(--ink);
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-radius: 3px;
+        padding: 1px 5px;
+      }
+    </style>
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="console">
+      <header>
+        <h1>Voa, Dumont!</h1>
+        <span class="reg" id="reg">PP-DMT</span>
+      </header>
+      <div class="screen">
+        <canvas
+          id="game"
+          width="400"
+          height="600"
+          aria-label="Jogo: desvie das torres e nuvens de tempestade"
+        ></canvas>
+        <form class="claim" id="claim" hidden>
+          <p class="claim-title" id="claim-title">Você entrou no Top 5!</p>
+          <p class="claim-text">
+            Coloque seu nome para registrar
+            <strong id="claim-score">0</strong> no ranking.
+          </p>
+          <div class="claim-row">
+            <input
+              id="claim-name"
+              maxlength="16"
+              autocomplete="nickname"
+              placeholder="Seu nome"
+              aria-label="Seu nome"
+            />
+            <button type="submit">Registrar</button>
+          </div>
+          <button type="button" class="claim-skip" id="claim-skip">
+            Agora não
+          </button>
+        </form>
       </div>
+      <div class="strip">
+        <label class="pilot" for="pilot-name">
+          <span class="label">Nome do piloto (para o ranking)</span>
+          <input
+            id="pilot-name"
+            maxlength="16"
+            autocomplete="nickname"
+            placeholder="Ex.: Fábio"
+          />
+        </label>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="label">Aeronave</span>
+          <div class="seg" role="group" aria-label="Escolha a aeronave">
+            <button id="btn-plane" aria-pressed="true">✈ Avião</button>
+            <button id="btn-heli" aria-pressed="false">Helicóptero</button>
+          </div>
+        </div>
+        <button class="mute" id="mute" aria-pressed="false">Som: ligado</button>
+      </div>
+      <section class="board" aria-labelledby="board-title">
+        <div class="board-head">
+          <h2 id="board-title">Top 5 da tripulação</h2>
+          <span class="label">obstáculos</span>
+        </div>
+        <ol id="board-list"></ol>
+        <p class="status" id="board-status">Carregando ranking…</p>
+      </section>
+      <p class="hint">
+        Toque na tela, <kbd>Espaço</kbd> ou <kbd>↑</kbd> para ganhar altitude.
+        Passe entre as nuvens de tempestade e as torres. O helicóptero é mais
+        leve e mais fácil de controlar; o avião é mais rápido de reagir.
+      </p>
     </div>
-    <button class="mute" id="mute" aria-pressed="false">Som: ligado</button>
-  </div>
-  <section class="board" aria-labelledby="board-title">
-    <div class="board-head">
-      <h2 id="board-title">Top 5 da tripulação</h2>
-      <span class="label">obstáculos</span>
-    </div>
-    <ol id="board-list"></ol>
-    <p class="status" id="board-status">Carregando ranking…</p>
-  </section>
-  <p class="hint">Toque na tela, <kbd>Espaço</kbd> ou <kbd>↑</kbd> para ganhar altitude. Passe entre as nuvens de tempestade e as torres. O helicóptero é mais leve e mais fácil de controlar; o avião é mais rápido de reagir.</p>
-</div>
 
-<script>
-(()=>{
-const W=400,H=600,GROUND=536;
-const cv=document.getElementById('game'),ctx=cv.getContext('2d');
-ctx.imageSmoothingEnabled=false;
+    <script>
+      (() => {
+        const W = 400,
+          H = 600,
+          GROUND = 536;
+        const cv = document.getElementById("game"),
+          ctx = cv.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
 
-// ---------- Sprites ----------
-const PAL={r:'#c8322b',w:'#f4f1e8',b:'#1f4e8c',k:'#7fd1e8',g:'#9aa3ad',d:'#3b4049',y:'#f2b632',o:'#c9761f',m:'#2b2f36'};
-function sprite(rows,s=2){
-  const c=document.createElement('canvas');c.width=rows[0].length*s;c.height=rows.length*s;
-  const x=c.getContext('2d');
-  rows.forEach((r,j)=>[...r].forEach((ch,i)=>{if(PAL[ch]){x.fillStyle=PAL[ch];x.fillRect(i*s,j*s,s,s);}}));
-  return c;
-}
-const PLANE=sprite([
-  "rrr.................",
-  "rrrr................",
-  ".rrrr...............",
-  ".rrrrrwwwwwwwwwwww..",
-  "wwwwwwwwwwwwwwwwwkkw",
-  "wbbbbbbbbbbbbbbbbbbw",
-  "wwwwwwwwwwwwwwwwwwww",
-  ".gwwwwwwwwwwwwwwwwg.",
-  "......dddddddd......",
-]);
-const HELI=sprite([
-  "..........m.........",
-  ".........ddd........",
-  ".......yyyyyyy......",
-  "y.....yyyyyyyykk....",
-  "yy...yyyyyyyyykkk...",
-  "yyyyyyyyyyyyyyyyyk..",
-  "y....yyyyyyyyyyyy...",
-  ".......oooooooo.....",
-  ".........d....d.....",
-  ".......dddddddddd...",
-]);
+        // ---------- Sprites ----------
+        const PAL = {
+          r: "#c8322b",
+          w: "#f4f1e8",
+          b: "#1f4e8c",
+          k: "#7fd1e8",
+          g: "#9aa3ad",
+          d: "#3b4049",
+          y: "#f2b632",
+          o: "#c9761f",
+          m: "#2b2f36",
+        };
+        function sprite(rows, s = 2) {
+          const c = document.createElement("canvas");
+          c.width = rows[0].length * s;
+          c.height = rows.length * s;
+          const x = c.getContext("2d");
+          rows.forEach((r, j) =>
+            [...r].forEach((ch, i) => {
+              if (PAL[ch]) {
+                x.fillStyle = PAL[ch];
+                x.fillRect(i * s, j * s, s, s);
+              }
+            }),
+          );
+          return c;
+        }
+        const PLANE = sprite([
+          "rrr.................",
+          "rrrr................",
+          ".rrrr...............",
+          ".rrrrrwwwwwwwwwwww..",
+          "wwwwwwwwwwwwwwwwwkkw",
+          "wbbbbbbbbbbbbbbbbbbw",
+          "wwwwwwwwwwwwwwwwwwww",
+          ".gwwwwwwwwwwwwwwwwg.",
+          "......dddddddd......",
+        ]);
+        const HELI = sprite([
+          "..........m.........",
+          ".........ddd........",
+          ".......yyyyyyy......",
+          "y.....yyyyyyyykk....",
+          "yy...yyyyyyyyykkk...",
+          "yyyyyyyyyyyyyyyyyk..",
+          "y....yyyyyyyyyyyy...",
+          ".......oooooooo.....",
+          ".........d....d.....",
+          ".......dddddddddd...",
+        ]);
 
-const CRAFT={
-  plane:{img:PLANE,g:1500,flap:-430,name:'Avião',reg:'PP-DMT'},
-  heli:{img:HELI,g:1100,flap:-360,name:'Helicóptero',reg:'PR-HLD'}
-};
+        const CRAFT = {
+          plane: {
+            img: PLANE,
+            g: 1500,
+            flap: -430,
+            name: "Avião",
+            reg: "PP-DMT",
+          },
+          heli: {
+            img: HELI,
+            g: 1100,
+            flap: -360,
+            name: "Helicóptero",
+            reg: "PR-HLD",
+          },
+        };
 
-// ---------- Estado ----------
-let best=0;
-try{best=+localStorage.getItem('voa-dumont-best')||0}catch(e){}
-let craftKey='plane';
-const S={state:'menu',t:0,y:H/2-40,vy:0,score:0,speed:150,obs:[],spawnX:0,overT:0,newBest:false,
-  bgX:0,cloudX:0,flash:0,pops:[]};
+        // ---------- Estado ----------
+        let best = 0;
+        try {
+          best = +localStorage.getItem("voa-dumont-best") || 0;
+        } catch (e) {}
+        let craftKey = "plane";
+        const S = {
+          state: "menu",
+          t: 0,
+          y: H / 2 + 50,
+          vy: 0,
+          score: 0,
+          speed: 150,
+          obs: [],
+          spawnX: 0,
+          overT: 0,
+          newBest: false,
+          bgX: 0,
+          cloudX: 0,
+          flash: 0,
+          pops: [],
+        };
 
-function reset(){
-  S.state='menu';S.y=H/2-40;S.vy=0;S.score=0;S.speed=150;S.obs=[];S.overT=0;S.newBest=false;S.pops=[];
-}
+        function reset() {
+          S.state = "menu";
+          S.y = H / 2 + 50;
+          S.vy = 0;
+          S.score = 0;
+          S.speed = 150;
+          S.obs = [];
+          S.overT = 0;
+          S.newBest = false;
+          S.pops = [];
+        }
 
-// ---------- Cenário ----------
-const sky=ctx.createLinearGradient(0,0,0,GROUND);
-sky.addColorStop(0,'#2d4f86');sky.addColorStop(.55,'#d98a6a');sky.addColorStop(1,'#f6c58a');
-const hills=[];{let h=60;for(let i=0;i<40;i++){h=Math.max(30,Math.min(95,h+(Math.random()*36-18)));hills.push(h);}}
-const city=[];for(let i=0;i<30;i++)city.push({w:14+Math.random()*18,h:20+Math.random()*50});
-const clouds=[];for(let i=0;i<6;i++)clouds.push({x:Math.random()*W,y:40+Math.random()*200,s:.6+Math.random()*.8});
+        // ---------- Cenário ----------
+        const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
+        sky.addColorStop(0, "#2d4f86");
+        sky.addColorStop(0.55, "#d98a6a");
+        sky.addColorStop(1, "#f6c58a");
+        const hills = [];
+        {
+          let h = 60;
+          for (let i = 0; i < 40; i++) {
+            h = Math.max(30, Math.min(95, h + (Math.random() * 36 - 18)));
+            hills.push(h);
+          }
+        }
+        const city = [];
+        for (let i = 0; i < 30; i++)
+          city.push({ w: 14 + Math.random() * 18, h: 20 + Math.random() * 50 });
+        const clouds = [];
+        for (let i = 0; i < 6; i++)
+          clouds.push({
+            x: Math.random() * W,
+            y: 40 + Math.random() * 200,
+            s: 0.6 + Math.random() * 0.8,
+          });
 
-function drawBG(dt){
-  ctx.fillStyle=sky;ctx.fillRect(0,0,W,GROUND);
-  // sol
-  ctx.fillStyle='#ffe2a0';ctx.beginPath();ctx.arc(300,380,34,0,7);ctx.fill();
-  ctx.fillStyle='rgba(255,226,160,.25)';ctx.beginPath();ctx.arc(300,380,52,0,7);ctx.fill();
-  // nuvens de fundo
-  ctx.fillStyle='rgba(255,240,230,.55)';
-  clouds.forEach(c=>{
-    c.x-=12*c.s*dt; if(c.x<-80){c.x=W+40;c.y=40+Math.random()*200;}
-    const s=c.s*10;
-    ctx.fillRect(c.x,c.y,s*6,s);ctx.fillRect(c.x+s,c.y-s,s*3,s);ctx.fillRect(c.x+s*2,c.y-s*2,s,s);
-  });
-  // morros
-  ctx.fillStyle='#8a5a6b';
-  const hw=20,off=(S.bgX*.15)%hw,startI=Math.floor(S.bgX*.15/hw);
-  for(let i=0;i<W/hw+2;i++){const h=hills[(startI+i)%hills.length];ctx.fillRect(i*hw-off,GROUND-h-30,hw,h+30);}
-  // cidade
-  ctx.fillStyle='#5b3d55';
-  let cx=-((S.bgX*.35)%600);
-  for(let rep=0;rep<2;rep++){let x=cx+rep*600;city.forEach(b=>{ctx.fillRect(x,GROUND-b.h,b.w,b.h);x+=b.w+6;});}
-  // chão: grama + pista
-  ctx.fillStyle='#4f7a3a';ctx.fillRect(0,GROUND,W,10);
-  ctx.fillStyle='#3a5c2b';ctx.fillRect(0,GROUND+10,W,2);
-  ctx.fillStyle='#3a3d44';ctx.fillRect(0,GROUND+12,W,H-GROUND-12);
-  ctx.fillStyle='#e9e4d6';
-  const dash=40,doff=S.bgX%dash;
-  for(let x=-doff;x<W;x+=dash)ctx.fillRect(x,GROUND+36,22,4);
-  // luzes de borda de pista
-  for(let x=-(S.bgX%60);x<W;x+=60){ctx.fillStyle=(Math.floor(S.t*2)%2)?'#ffd36b':'#b98a2a';ctx.fillRect(x+30,GROUND+14,3,3);}
-}
+        function drawBG(dt) {
+          ctx.fillStyle = sky;
+          ctx.fillRect(0, 0, W, GROUND);
+          // sol
+          ctx.fillStyle = "#ffe2a0";
+          ctx.beginPath();
+          ctx.arc(300, 380, 34, 0, 7);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,226,160,.25)";
+          ctx.beginPath();
+          ctx.arc(300, 380, 52, 0, 7);
+          ctx.fill();
+          // nuvens de fundo
+          ctx.fillStyle = "rgba(255,240,230,.55)";
+          clouds.forEach((c) => {
+            c.x -= 12 * c.s * dt;
+            if (c.x < -80) {
+              c.x = W + 40;
+              c.y = 40 + Math.random() * 200;
+            }
+            const s = c.s * 10;
+            ctx.fillRect(c.x, c.y, s * 6, s);
+            ctx.fillRect(c.x + s, c.y - s, s * 3, s);
+            ctx.fillRect(c.x + s * 2, c.y - s * 2, s, s);
+          });
+          // morros
+          ctx.fillStyle = "#8a5a6b";
+          const hw = 20,
+            off = (S.bgX * 0.15) % hw,
+            startI = Math.floor((S.bgX * 0.15) / hw);
+          for (let i = 0; i < W / hw + 2; i++) {
+            const h = hills[(startI + i) % hills.length];
+            ctx.fillRect(i * hw - off, GROUND - h - 30, hw, h + 30);
+          }
+          // cidade
+          ctx.fillStyle = "#5b3d55";
+          let cx = -((S.bgX * 0.35) % 600);
+          for (let rep = 0; rep < 2; rep++) {
+            let x = cx + rep * 600;
+            city.forEach((b) => {
+              ctx.fillRect(x, GROUND - b.h, b.w, b.h);
+              x += b.w + 6;
+            });
+          }
+          // chão: grama + pista
+          ctx.fillStyle = "#4f7a3a";
+          ctx.fillRect(0, GROUND, W, 10);
+          ctx.fillStyle = "#3a5c2b";
+          ctx.fillRect(0, GROUND + 10, W, 2);
+          ctx.fillStyle = "#3a3d44";
+          ctx.fillRect(0, GROUND + 12, W, H - GROUND - 12);
+          ctx.fillStyle = "#e9e4d6";
+          const dash = 40,
+            doff = S.bgX % dash;
+          for (let x = -doff; x < W; x += dash)
+            ctx.fillRect(x, GROUND + 36, 22, 4);
+          // luzes de borda de pista
+          for (let x = -(S.bgX % 60); x < W; x += 60) {
+            ctx.fillStyle = Math.floor(S.t * 2) % 2 ? "#ffd36b" : "#b98a2a";
+            ctx.fillRect(x + 30, GROUND + 14, 3, 3);
+          }
+        }
 
-// ---------- Obstáculos ----------
-const OW=64;
-function spawn(){
-  const prev=S.obs.length?S.obs[S.obs.length-1].gy:H/2;
-  const gap=Math.max(128,175-S.score*1.6);
-  let gy=prev+(Math.random()*300-150);
-  gy=Math.max(70+gap/2,Math.min(GROUND-60-gap/2,gy));
-  const type=Math.random()<.5?'torre':'antena';
-  S.obs.push({x:W+10,gy,gap,type,passed:false,bolt:0});
-}
-function hitbox(o){
-  const top=o.gy-o.gap/2,bot=o.gy+o.gap/2;
-  const bw=o.type==='antena'?26:OW, bx=o.x+(OW-bw)/2;
-  return {top:{x:o.x,y:0,w:OW,h:top},bot:o.type==='antena'
-    ?[{x:bx,y:bot,w:bw,h:GROUND-bot}]
-    :[{x:o.x,y:bot,w:OW,h:34},{x:o.x+12,y:bot+34,w:OW-24,h:GROUND-bot-34}]};
-}
-function drawCloud(o){
-  const top=o.gy-o.gap/2;
-  const flash=o.bolt>0;
-  ctx.fillStyle=flash?'#8d93a6':'#4a4f63';
-  ctx.fillRect(o.x,0,OW,top-8);
-  ctx.fillStyle=flash?'#a4aabd':'#5d6379';
-  for(let i=0;i<5;i++){ctx.beginPath();ctx.arc(o.x+6+i*13,top-10,11,0,7);ctx.fill();}
-  ctx.fillStyle=flash?'#7a8094':'#3c4153';
-  for(let y=20;y<top-30;y+=34){ctx.fillRect(o.x+8,y,20,6);ctx.fillRect(o.x+34,y+16,22,6);}
-  if(flash){
-    ctx.strokeStyle='#ffe066';ctx.lineWidth=3;ctx.beginPath();
-    const bx=o.x+30;ctx.moveTo(bx,top-60);ctx.lineTo(bx-8,top-40);ctx.lineTo(bx+4,top-36);ctx.lineTo(bx-6,top-16);ctx.stroke();
-  }
-}
-function drawTower(o){
-  const bot=o.gy+o.gap/2;
-  // fuste
-  ctx.fillStyle='#d7d2c4';ctx.fillRect(o.x+12,bot+34,OW-24,GROUND-bot-34);
-  ctx.fillStyle='#b9b3a3';ctx.fillRect(o.x+12,bot+34,6,GROUND-bot-34);
-  ctx.fillStyle='#6b7a8f';
-  for(let y=bot+50;y<GROUND-14;y+=26)ctx.fillRect(o.x+28,y,8,12);
-  // cabine
-  ctx.fillStyle='#2b2f36';ctx.fillRect(o.x-2,bot,OW+4,8);
-  ctx.fillStyle='#7fd1e8';ctx.fillRect(o.x,bot+8,OW,18);
-  ctx.fillStyle='#2b2f36';for(let i=0;i<=4;i++)ctx.fillRect(o.x+i*15.5,bot+8,3,18);
-  ctx.fillStyle='#d7d2c4';ctx.fillRect(o.x+4,bot+26,OW-8,8);
-  // antena do topo
-  ctx.fillStyle='#2b2f36';ctx.fillRect(o.x+30,bot-10,3,10);
-  ctx.fillStyle=(Math.floor(S.t*2)%2)?'#ff4a3d':'#7a1f1a';ctx.fillRect(o.x+29,bot-13,5,4);
-}
-function drawMast(o){
-  const bot=o.gy+o.gap/2,cx=o.x+OW/2,w=26,x=cx-w/2,h=GROUND-bot;
-  for(let y=0;y<h;y+=22){ctx.fillStyle=(Math.floor(y/22)%2)?'#f4f1e8':'#d6402f';ctx.fillRect(x,bot+y,w,Math.min(22,h-y));}
-  ctx.strokeStyle='rgba(40,30,30,.45)';ctx.lineWidth=2;ctx.beginPath();
-  for(let y=0;y<h;y+=22){ctx.moveTo(x,bot+y);ctx.lineTo(x+w,bot+Math.min(y+22,h));ctx.moveTo(x+w,bot+y);ctx.lineTo(x,bot+Math.min(y+22,h));}
-  ctx.stroke();
-  // parábola
-  ctx.fillStyle='#e9e4d6';ctx.fillRect(x+w,bot+40,8,14);ctx.fillStyle='#9aa3ad';ctx.fillRect(x+w+8,bot+45,4,4);
-  // luz de obstáculo
-  const on=(Math.floor(S.t*2.5)%2)===0;
-  ctx.fillStyle=on?'#ff4a3d':'#7a1f1a';ctx.fillRect(cx-4,bot-6,8,6);
-  if(on){ctx.fillStyle='rgba(255,74,61,.25)';ctx.beginPath();ctx.arc(cx,bot-3,12,0,7);ctx.fill();}
-}
+        // ---------- Obstáculos ----------
+        const OW = 64;
+        function spawn() {
+          const prev = S.obs.length ? S.obs[S.obs.length - 1].gy : H / 2;
+          const gap = Math.max(128, 175 - S.score * 1.6);
+          let gy = prev + (Math.random() * 300 - 150);
+          gy = Math.max(70 + gap / 2, Math.min(GROUND - 60 - gap / 2, gy));
+          const type = Math.random() < 0.5 ? "torre" : "antena";
+          S.obs.push({ x: W + 10, gy, gap, type, passed: false, bolt: 0 });
+        }
+        function hitbox(o) {
+          const top = o.gy - o.gap / 2,
+            bot = o.gy + o.gap / 2;
+          const bw = o.type === "antena" ? 26 : OW,
+            bx = o.x + (OW - bw) / 2;
+          return {
+            top: { x: o.x, y: 0, w: OW, h: top },
+            bot:
+              o.type === "antena"
+                ? [{ x: bx, y: bot, w: bw, h: GROUND - bot }]
+                : [
+                    { x: o.x, y: bot, w: OW, h: 34 },
+                    {
+                      x: o.x + 12,
+                      y: bot + 34,
+                      w: OW - 24,
+                      h: GROUND - bot - 34,
+                    },
+                  ],
+          };
+        }
+        function drawCloud(o) {
+          const top = o.gy - o.gap / 2;
+          const flash = o.bolt > 0;
+          ctx.fillStyle = flash ? "#8d93a6" : "#4a4f63";
+          ctx.fillRect(o.x, 0, OW, top - 8);
+          ctx.fillStyle = flash ? "#a4aabd" : "#5d6379";
+          for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            ctx.arc(o.x + 6 + i * 13, top - 10, 11, 0, 7);
+            ctx.fill();
+          }
+          ctx.fillStyle = flash ? "#7a8094" : "#3c4153";
+          for (let y = 20; y < top - 30; y += 34) {
+            ctx.fillRect(o.x + 8, y, 20, 6);
+            ctx.fillRect(o.x + 34, y + 16, 22, 6);
+          }
+          if (flash) {
+            ctx.strokeStyle = "#ffe066";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            const bx = o.x + 30;
+            ctx.moveTo(bx, top - 60);
+            ctx.lineTo(bx - 8, top - 40);
+            ctx.lineTo(bx + 4, top - 36);
+            ctx.lineTo(bx - 6, top - 16);
+            ctx.stroke();
+          }
+        }
+        function drawTower(o) {
+          const bot = o.gy + o.gap / 2;
+          // fuste
+          ctx.fillStyle = "#d7d2c4";
+          ctx.fillRect(o.x + 12, bot + 34, OW - 24, GROUND - bot - 34);
+          ctx.fillStyle = "#b9b3a3";
+          ctx.fillRect(o.x + 12, bot + 34, 6, GROUND - bot - 34);
+          ctx.fillStyle = "#6b7a8f";
+          for (let y = bot + 50; y < GROUND - 14; y += 26)
+            ctx.fillRect(o.x + 28, y, 8, 12);
+          // cabine
+          ctx.fillStyle = "#2b2f36";
+          ctx.fillRect(o.x - 2, bot, OW + 4, 8);
+          ctx.fillStyle = "#7fd1e8";
+          ctx.fillRect(o.x, bot + 8, OW, 18);
+          ctx.fillStyle = "#2b2f36";
+          for (let i = 0; i <= 4; i++)
+            ctx.fillRect(o.x + i * 15.5, bot + 8, 3, 18);
+          ctx.fillStyle = "#d7d2c4";
+          ctx.fillRect(o.x + 4, bot + 26, OW - 8, 8);
+          // antena do topo
+          ctx.fillStyle = "#2b2f36";
+          ctx.fillRect(o.x + 30, bot - 10, 3, 10);
+          ctx.fillStyle = Math.floor(S.t * 2) % 2 ? "#ff4a3d" : "#7a1f1a";
+          ctx.fillRect(o.x + 29, bot - 13, 5, 4);
+        }
+        function drawMast(o) {
+          const bot = o.gy + o.gap / 2,
+            cx = o.x + OW / 2,
+            w = 26,
+            x = cx - w / 2,
+            h = GROUND - bot;
+          for (let y = 0; y < h; y += 22) {
+            ctx.fillStyle = Math.floor(y / 22) % 2 ? "#f4f1e8" : "#d6402f";
+            ctx.fillRect(x, bot + y, w, Math.min(22, h - y));
+          }
+          ctx.strokeStyle = "rgba(40,30,30,.45)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (let y = 0; y < h; y += 22) {
+            ctx.moveTo(x, bot + y);
+            ctx.lineTo(x + w, bot + Math.min(y + 22, h));
+            ctx.moveTo(x + w, bot + y);
+            ctx.lineTo(x, bot + Math.min(y + 22, h));
+          }
+          ctx.stroke();
+          // parábola
+          ctx.fillStyle = "#e9e4d6";
+          ctx.fillRect(x + w, bot + 40, 8, 14);
+          ctx.fillStyle = "#9aa3ad";
+          ctx.fillRect(x + w + 8, bot + 45, 4, 4);
+          // luz de obstáculo
+          const on = Math.floor(S.t * 2.5) % 2 === 0;
+          ctx.fillStyle = on ? "#ff4a3d" : "#7a1f1a";
+          ctx.fillRect(cx - 4, bot - 6, 8, 6);
+          if (on) {
+            ctx.fillStyle = "rgba(255,74,61,.25)";
+            ctx.beginPath();
+            ctx.arc(cx, bot - 3, 12, 0, 7);
+            ctx.fill();
+          }
+        }
 
-// ---------- Aeronave ----------
-const PX=96;
-function drawCraft(){
-  const c=CRAFT[craftKey],img=c.img;
-  let ang=Math.max(-.45,Math.min(1.1,S.vy/650));
-  if(craftKey==='heli')ang*=.35;
-  if(S.state==='menu')ang=Math.sin(S.t*3)*.06;
-  ctx.save();ctx.translate(PX,S.y);ctx.rotate(ang);
-  ctx.drawImage(img,-img.width/2,-img.height/2);
-  if(craftKey==='plane'){
-    // hélice
-    const ph=(Math.floor(S.t*30)%2)?18:8;
-    ctx.fillStyle='rgba(220,224,232,.8)';ctx.fillRect(img.width/2,-ph/2+1,2,ph);
-  }else{
-    // rotor principal e de cauda
-    const rw=10+Math.abs(Math.sin(S.t*40))*24;
-    ctx.fillStyle='#2b2f36';ctx.fillRect(2-rw,-img.height/2-2,rw*2,2);
-    const tr=2+Math.abs(Math.sin(S.t*55))*5;
-    ctx.fillRect(-img.width/2-1,-img.height/2+7-tr,2,tr*2);
-  }
-  ctx.restore();
-}
-function craftBox(){return {x:PX-17,y:S.y-7,w:34,h:14};}
-const hit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+        // ---------- Aeronave ----------
+        const PX = 96;
+        function drawCraft() {
+          const c = CRAFT[craftKey],
+            img = c.img;
+          let ang = Math.max(-0.45, Math.min(1.1, S.vy / 650));
+          if (craftKey === "heli") ang *= 0.35;
+          if (S.state === "menu") ang = Math.sin(S.t * 3) * 0.06;
+          ctx.save();
+          ctx.translate(PX, S.y);
+          ctx.rotate(ang);
+          ctx.drawImage(img, -img.width / 2, -img.height / 2);
+          if (craftKey === "plane") {
+            // hélice
+            const ph = Math.floor(S.t * 30) % 2 ? 18 : 8;
+            ctx.fillStyle = "rgba(220,224,232,.8)";
+            ctx.fillRect(img.width / 2, -ph / 2 + 1, 2, ph);
+          } else {
+            // rotor principal e de cauda
+            const rw = 10 + Math.abs(Math.sin(S.t * 40)) * 24;
+            ctx.fillStyle = "#2b2f36";
+            ctx.fillRect(2 - rw, -img.height / 2 - 2, rw * 2, 2);
+            const tr = 2 + Math.abs(Math.sin(S.t * 55)) * 5;
+            ctx.fillRect(
+              -img.width / 2 - 1,
+              -img.height / 2 + 7 - tr,
+              2,
+              tr * 2,
+            );
+          }
+          ctx.restore();
+        }
+        function craftBox() {
+          return { x: PX - 17, y: S.y - 7, w: 34, h: 14 };
+        }
+        const hit = (a, b) =>
+          a.x < b.x + b.w &&
+          a.x + a.w > b.x &&
+          a.y < b.y + b.h &&
+          a.y + a.h > b.y;
 
-// ---------- Áudio ----------
-let actx=null,muted=false;
-function ac(){if(!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return actx;}
-function tone(f,d,type='square',v=.05,slide=0,delay=0){
-  if(muted)return;const a=ac();if(!a)return;
-  const t=a.currentTime+delay,o=a.createOscillator(),g=a.createGain();
-  o.type=type;o.frequency.setValueAtTime(f,t);if(slide)o.frequency.linearRampToValueAtTime(f+slide,t+d);
-  g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
-  o.connect(g).connect(a.destination);o.start(t);o.stop(t+d+.02);
-}
-function noise(d=.5,v=.2){
-  if(muted)return;const a=ac();if(!a)return;
-  const b=a.createBuffer(1,a.sampleRate*d,a.sampleRate),ch=b.getChannelData(0);
-  for(let i=0;i<ch.length;i++)ch[i]=(Math.random()*2-1)*(1-i/ch.length);
-  const s=a.createBufferSource(),g=a.createGain();s.buffer=b;g.gain.value=v;s.connect(g).connect(a.destination);s.start();
-}
-const sfx={
-  flap:()=>craftKey==='plane'?tone(300,.09,'triangle',.06,260):tone(140,.1,'sawtooth',.035,60),
-  point:()=>{tone(880,.08,'square',.04);tone(1320,.12,'square',.04,0,.08);},
-  crash:()=>{noise(.6,.22);tone(220,.5,'sawtooth',.05,-170);}
-};
+        // ---------- Áudio ----------
+        let actx = null,
+          muted = false;
+        function ac() {
+          if (!actx) {
+            try {
+              actx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {}
+          }
+          return actx;
+        }
+        function tone(f, d, type = "square", v = 0.05, slide = 0, delay = 0) {
+          if (muted) return;
+          const a = ac();
+          if (!a) return;
+          const t = a.currentTime + delay,
+            o = a.createOscillator(),
+            g = a.createGain();
+          o.type = type;
+          o.frequency.setValueAtTime(f, t);
+          if (slide) o.frequency.linearRampToValueAtTime(f + slide, t + d);
+          g.gain.setValueAtTime(v, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+          o.connect(g).connect(a.destination);
+          o.start(t);
+          o.stop(t + d + 0.02);
+        }
+        function noise(d = 0.5, v = 0.2) {
+          if (muted) return;
+          const a = ac();
+          if (!a) return;
+          const b = a.createBuffer(1, a.sampleRate * d, a.sampleRate),
+            ch = b.getChannelData(0);
+          for (let i = 0; i < ch.length; i++)
+            ch[i] = (Math.random() * 2 - 1) * (1 - i / ch.length);
+          const s = a.createBufferSource(),
+            g = a.createGain();
+          s.buffer = b;
+          g.gain.value = v;
+          s.connect(g).connect(a.destination);
+          s.start();
+        }
+        const sfx = {
+          flap: () =>
+            craftKey === "plane"
+              ? tone(300, 0.09, "triangle", 0.06, 260)
+              : tone(140, 0.1, "sawtooth", 0.035, 60),
+          point: () => {
+            tone(880, 0.08, "square", 0.04);
+            tone(1320, 0.12, "square", 0.04, 0, 0.08);
+          },
+          crash: () => {
+            noise(0.6, 0.22);
+            tone(220, 0.5, "sawtooth", 0.05, -170);
+          },
+        };
 
-// ---------- Brevê ----------
-function breve(s){
-  if(s>=50)return 'PLA · Piloto de Linha Aérea';
-  if(s>=25)return 'PC · Piloto Comercial';
-  if(s>=10)return 'PP · Piloto Privado';
-  return 'Aluno piloto';
-}
+        // ---------- Brevê ----------
+        function breve(s) {
+          if (s >= 50) return "PLA · Piloto de Linha Aérea";
+          if (s >= 25) return "PC · Piloto Comercial";
+          if (s >= 10) return "PP · Piloto Privado";
+          return "Aluno piloto";
+        }
 
-// ---------- Entrada ----------
-function flap(){
-  if(S.state==='menu'){S.state='play';S.obs=[];spawn();}
-  if(S.state==='play'){S.vy=CRAFT[craftKey].flap;sfx.flap();}
-  else if(S.state==='over'&&S.overT>.6){reset();}
-  syncButtons();
-}
-cv.addEventListener('pointerdown',e=>{e.preventDefault();flap();});
-// iOS Safari ignora parte das travas de zoom: cancela os gestos de toque no jogo
-['touchstart','touchend','touchmove','dblclick'].forEach(t=>cv.addEventListener(t,e=>e.preventDefault(),{passive:false}));
-// Toque duplo rápido fora do canvas (bordas, painel) também não deve dar zoom
-let lastTouchEnd=0;
-document.addEventListener('touchend',e=>{
-  const now=Date.now();
-  if(now-lastTouchEnd<350&&!(e.target.closest&&e.target.closest('input')))e.preventDefault();
-  lastTouchEnd=now;
-},{passive:false});
-// Pinça (zoom com dois dedos) no Safari
-['gesturestart','gesturechange'].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
-addEventListener('keydown',e=>{
-  if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'){
-    const tag=document.activeElement&&document.activeElement.tagName;
-    if(tag==='INPUT')return;
-    if(tag==='BUTTON'&&e.code==='Space')return;
-    e.preventDefault();flap();
-  }
-});
-const bP=document.getElementById('btn-plane'),bH=document.getElementById('btn-heli'),reg=document.getElementById('reg');
-function pick(k){if(S.state==='play')return;craftKey=k;syncButtons();}
-function syncButtons(){
-  bP.setAttribute('aria-pressed',craftKey==='plane');bH.setAttribute('aria-pressed',craftKey==='heli');
-  bP.disabled=bH.disabled=S.state==='play';reg.textContent=CRAFT[craftKey].reg;
-}
-bP.onclick=()=>pick('plane');bH.onclick=()=>pick('heli');
-const mb=document.getElementById('mute');
-mb.onclick=()=>{muted=!muted;mb.textContent='Som: '+(muted?'desligado':'ligado');mb.setAttribute('aria-pressed',muted);};
+        // ---------- Entrada ----------
+        function flap() {
+          if (S.state === "menu") {
+            S.state = "play";
+            S.obs = [];
+            spawn();
+          }
+          if (S.state === "play") {
+            S.vy = CRAFT[craftKey].flap;
+            sfx.flap();
+          } else if (S.state === "over" && S.overT > 0.6) {
+            hideClaim();
+            reset();
+          }
+          syncButtons();
+        }
+        cv.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          flap();
+        });
+        // iOS Safari ignora parte das travas de zoom: cancela os gestos de toque no jogo
+        ["touchstart", "touchend", "touchmove", "dblclick"].forEach((t) =>
+          cv.addEventListener(t, (e) => e.preventDefault(), { passive: false }),
+        );
+        // Toque duplo rápido fora do canvas (bordas, painel) também não deve dar zoom
+        let lastTouchEnd = 0;
+        document.addEventListener(
+          "touchend",
+          (e) => {
+            const now = Date.now();
+            if (
+              now - lastTouchEnd < 350 &&
+              !(e.target.closest && e.target.closest("input"))
+            )
+              e.preventDefault();
+            lastTouchEnd = now;
+          },
+          { passive: false },
+        );
+        // Pinça (zoom com dois dedos) no Safari
+        ["gesturestart", "gesturechange"].forEach((t) =>
+          document.addEventListener(t, (e) => e.preventDefault(), {
+            passive: false,
+          }),
+        );
+        addEventListener("keydown", (e) => {
+          if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+            const tag =
+              document.activeElement && document.activeElement.tagName;
+            if (tag === "INPUT") return;
+            if (tag === "BUTTON" && e.code === "Space") return;
+            e.preventDefault();
+            flap();
+          }
+        });
+        const bP = document.getElementById("btn-plane"),
+          bH = document.getElementById("btn-heli"),
+          reg = document.getElementById("reg");
+        function pick(k) {
+          if (S.state === "play") return;
+          craftKey = k;
+          syncButtons();
+        }
+        function syncButtons() {
+          bP.setAttribute("aria-pressed", craftKey === "plane");
+          bH.setAttribute("aria-pressed", craftKey === "heli");
+          bP.disabled = bH.disabled = S.state === "play";
+          reg.textContent = CRAFT[craftKey].reg;
+        }
+        bP.onclick = () => pick("plane");
+        bH.onclick = () => pick("heli");
+        const mb = document.getElementById("mute");
+        mb.onclick = () => {
+          muted = !muted;
+          mb.textContent = "Som: " + (muted ? "desligado" : "ligado");
+          mb.setAttribute("aria-pressed", muted);
+        };
 
-// ---------- Ranking compartilhado ----------
-const RANKING_URL='/api/ranking';
-const nameIn=document.getElementById('pilot-name'),list=document.getElementById('board-list'),status=document.getElementById('board-status');
-try{nameIn.value=localStorage.getItem('voa-dumont-name')||''}catch(e){}
-nameIn.addEventListener('change',()=>{nameIn.value=nameIn.value.trim().slice(0,16);try{localStorage.setItem('voa-dumont-name',nameIn.value)}catch(e){}});
-nameIn.addEventListener('keydown',e=>{if(e.key==='Enter')nameIn.blur();});
-let board=[];
-function renderBoard(){
-  list.textContent='';
-  const me=nameIn.value.trim().toLowerCase();
-  board.forEach((r,i)=>{
-    const li=document.createElement('li');if(me&&r.name.toLowerCase()===me)li.className='me';
-    const p=document.createElement('span');p.className='pos';p.textContent=(i+1)+'º';
-    const n=document.createElement('span');n.className='nm';n.textContent=r.name;
-    const s=document.createElement('span');s.className='sc';s.textContent=r.score;
-    li.append(p,n,s);list.append(li);
-  });
-  if(!board.length)status.textContent='Ninguém pontuou ainda. Seja o primeiro comandante!';
-}
-async function loadBoard(){
-  try{
-    const r=await fetch(RANKING_URL,{cache:'no-store'});
-    if(!r.ok)throw 0;
-    board=(await r.json()).top||[];status.textContent='';renderBoard();
-  }catch(e){status.textContent='Ranking indisponível no momento. Seu recorde local continua salvo.';}
-}
-// Recorde pendente: fica salvo no navegador até o servidor confirmar o recebimento.
-const PKEY='voa-dumont-pending';
-function getPending(){try{return JSON.parse(localStorage.getItem(PKEY)||'null')}catch(e){return null}}
-function setPending(p){try{p?localStorage.setItem(PKEY,JSON.stringify(p)):localStorage.removeItem(PKEY)}catch(e){}}
-let sending=false,retries=0,retryTimer=null;
-async function trySend(){
-  const p=getPending();
-  if(!p||sending)return;
-  sending=true;clearTimeout(retryTimer);
-  let retry=false;
-  try{
-    const r=await fetch(RANKING_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
-    const j=await r.json().catch(()=>({}));
-    if(r.ok){
-      const now=getPending();
-      if(now&&now.name===p.name&&now.score===p.score)setPending(null);
-      retries=0;board=j.top||board;renderBoard();
-      status.textContent=j.improved?'Recorde de '+p.score+' registrado no ranking!':'';
-    }else if(r.status===400){
-      setPending(null);status.textContent=j.error||'Recorde recusado pelo servidor.';
-    }else{
-      retry=true;status.textContent=(j.error||'Não foi possível enviar agora.')+' Tentando de novo…';
-    }
-  }catch(e){retry=true;status.textContent='Sem conexão com o ranking. Seu recorde será enviado assim que possível.';}
-  sending=false;
-  if(retry&&retries<8){retries++;retryTimer=setTimeout(trySend,4000*retries);}
-  else if(getPending()&&!retry)trySend(); // chegou um recorde novo durante o envio
-}
-function submitScore(score){
-  const name=nameIn.value.trim();
-  if(score<1)return;
-  if(!name){status.textContent='Coloque seu nome acima para entrar no ranking.';return;}
-  const p=getPending();
-  if(!p||p.name.toLowerCase()!==name.toLowerCase()||score>p.score)setPending({name,score});
-  retries=0;trySend();
-}
-// Ao abrir: reenvia o melhor recorde local uma vez (recupera envios que falharam em versões anteriores)
-(function syncLocalBest(){
-  const name=nameIn.value.trim();let synced=0;
-  try{synced=+localStorage.getItem('voa-dumont-synced')||0}catch(e){}
-  if(name&&best>synced){
-    const p=getPending();
-    if(!p||best>p.score)setPending({name,score:best});
-    try{localStorage.setItem('voa-dumont-synced',best)}catch(e){}
-  }
-})();
-loadBoard().then(trySend);
-setInterval(()=>{if(S.state!=='play')loadBoard();},30000);
+        // ---------- Ranking compartilhado ----------
+        const RANKING_URL = "/api/ranking";
+        const nameIn = document.getElementById("pilot-name"),
+          list = document.getElementById("board-list"),
+          status = document.getElementById("board-status");
+        try {
+          nameIn.value = localStorage.getItem("voa-dumont-name") || "";
+        } catch (e) {}
+        nameIn.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") nameIn.blur();
+        });
+        let board = [];
+        function renderBoard() {
+          list.textContent = "";
+          const me = nameIn.value.trim().toLowerCase();
+          board.forEach((r, i) => {
+            const li = document.createElement("li");
+            if (me && r.name.toLowerCase() === me) li.className = "me";
+            const p = document.createElement("span");
+            p.className = "pos";
+            p.textContent = i + 1 + "º";
+            const n = document.createElement("span");
+            n.className = "nm";
+            n.textContent = r.name;
+            const s = document.createElement("span");
+            s.className = "sc";
+            s.textContent = r.score;
+            li.append(p, n, s);
+            list.append(li);
+          });
+          if (!board.length)
+            status.textContent =
+              "Ninguém pontuou ainda. Seja o primeiro comandante!";
+        }
+        async function loadBoard() {
+          try {
+            const r = await fetch(RANKING_URL, { cache: "no-store" });
+            if (!r.ok) throw 0;
+            board = (await r.json()).top || [];
+            status.textContent = "";
+            renderBoard();
+          } catch (e) {
+            status.textContent =
+              "Ranking indisponível no momento. Seu recorde local continua salvo.";
+          }
+        }
+        // Recorde pendente: fica salvo no navegador até o servidor confirmar o recebimento.
+        const PKEY = "voa-dumont-pending";
+        function getPending() {
+          try {
+            return JSON.parse(localStorage.getItem(PKEY) || "null");
+          } catch (e) {
+            return null;
+          }
+        }
+        function setPending(p) {
+          try {
+            p
+              ? localStorage.setItem(PKEY, JSON.stringify(p))
+              : localStorage.removeItem(PKEY);
+          } catch (e) {}
+        }
+        let sending = false,
+          retries = 0,
+          retryTimer = null;
+        async function trySend() {
+          const p = getPending();
+          if (!p || sending) return;
+          sending = true;
+          clearTimeout(retryTimer);
+          let retry = false;
+          try {
+            const r = await fetch(RANKING_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(p),
+            });
+            const j = await r.json().catch(() => ({}));
+            if (r.ok) {
+              const now = getPending();
+              if (now && now.name === p.name && now.score === p.score)
+                setPending(null);
+              retries = 0;
+              board = j.top || board;
+              renderBoard();
+              status.textContent = j.improved
+                ? "Recorde de " + p.score + " registrado no ranking!"
+                : "";
+            } else if (r.status === 400) {
+              setPending(null);
+              status.textContent = j.error || "Recorde recusado pelo servidor.";
+            } else {
+              retry = true;
+              status.textContent =
+                (j.error || "Não foi possível enviar agora.") +
+                " Tentando de novo…";
+            }
+          } catch (e) {
+            retry = true;
+            status.textContent =
+              "Sem conexão com o ranking. Seu recorde será enviado assim que possível.";
+          }
+          sending = false;
+          if (retry && retries < 8) {
+            retries++;
+            retryTimer = setTimeout(trySend, 4000 * retries);
+          } else if (getPending() && !retry) trySend(); // chegou um recorde novo durante o envio
+        }
+        // Pontuação feita sem nome: guardada até a pessoa se identificar
+        const AKEY = "voa-dumont-anon";
+        function getAnon() {
+          try {
+            return +localStorage.getItem(AKEY) || 0;
+          } catch (e) {
+            return 0;
+          }
+        }
+        function setAnon(v) {
+          try {
+            v ? localStorage.setItem(AKEY, v) : localStorage.removeItem(AKEY);
+          } catch (e) {}
+        }
+        let anonMem = getAnon(); // cópia em memória caso o navegador bloqueie o armazenamento
+        // Posição que a pontuação alcançaria no Top 5 (0 = fora)
+        function rankFor(score) {
+          const pos = board.filter((r) => r.score >= score).length + 1;
+          return pos <= 5 ? pos : 0;
+        }
+        const claim = document.getElementById("claim"),
+          claimName = document.getElementById("claim-name"),
+          claimTitle = document.getElementById("claim-title"),
+          claimScore = document.getElementById("claim-score");
+        function showClaim(score, pos) {
+          claimTitle.textContent = "Você ficaria em " + pos + "º lugar!";
+          claimScore.textContent =
+            score + (score === 1 ? " obstáculo" : " obstáculos");
+          claimName.value = "";
+          claim.hidden = false;
+        }
+        function hideClaim() {
+          claim.hidden = true;
+        }
+        function setName(name) {
+          name = name.trim().slice(0, 16);
+          nameIn.value = name;
+          try {
+            localStorage.setItem("voa-dumont-name", name);
+          } catch (e) {}
+          nameIn.classList.toggle("needs-name", !name);
+          return name;
+        }
+        // Quando a pessoa passa a ter nome, envia o que ela fez antes sem nome
+        function claimAnon() {
+          const name = nameIn.value.trim(),
+            score = Math.max(anonMem, getAnon());
+          if (!name || score < 1) return;
+          setAnon(0);
+          anonMem = 0;
+          submitScore(score);
+        }
+        claim.addEventListener("submit", (e) => {
+          e.preventDefault();
+          if (setName(claimName.value).length < 2) {
+            claimName.focus();
+            claimTitle.textContent = "O nome precisa ter 2 letras ou mais";
+            return;
+          }
+          hideClaim();
+          claimName.blur();
+          claimAnon();
+        });
+        document.getElementById("claim-skip").onclick = () => {
+          hideClaim();
+          nameIn.classList.add("needs-name");
+          status.textContent =
+            "Seu recorde ficou guardado. Coloque seu nome no campo acima quando quiser registrá-lo.";
+        };
+        claim.addEventListener("pointerdown", (e) => e.stopPropagation());
+        nameIn.addEventListener("change", () => {
+          setName(nameIn.value);
+          if (nameIn.value) claimAnon();
+          renderBoard();
+        });
 
-// ---------- Loop ----------
-function crash(){
-  S.state='over';S.overT=0;sfx.crash();
-  if(S.score>best){best=S.score;S.newBest=true;try{localStorage.setItem('voa-dumont-best',best)}catch(e){}}
-  submitScore(S.score);
-  syncButtons();
-}
-function update(dt){
-  S.t+=dt;
-  const c=CRAFT[craftKey];
-  if(S.state==='menu'){S.y=H/2-40+Math.sin(S.t*2.2)*10;S.bgX+=90*dt;return;}
-  if(S.state==='over'){
-    S.overT+=dt;
-    if(S.y<GROUND-10){S.vy+=c.g*dt;S.y=Math.min(GROUND-10,S.y+S.vy*dt);}
-    return;
-  }
-  S.speed=Math.min(230,150+S.score*2.2);
-  S.bgX+=S.speed*dt;
-  S.vy+=c.g*dt;S.y+=S.vy*dt;
-  if(S.y<14){S.y=14;S.vy=Math.max(0,S.vy);}
-  S.obs.forEach(o=>{o.x-=S.speed*dt;if(o.bolt>0)o.bolt-=dt;else if(Math.random()<dt*.25)o.bolt=.12;});
-  S.obs=S.obs.filter(o=>o.x>-OW-10);
-  const last=S.obs[S.obs.length-1];
-  if(!last||last.x<W-230)spawn();
-  const box=craftBox();
-  for(const o of S.obs){
-    const hb=hitbox(o);
-    if(hit(box,hb.top)||hb.bot.some(b=>hit(box,b))){crash();return;}
-    if(!o.passed&&o.x+OW<PX-17){o.passed=true;S.score++;sfx.point();S.pops.push({x:PX+20,y:S.y-20,t:.6});}
-  }
-  if(S.y+7>=GROUND){S.y=GROUND-7;crash();}
-  S.pops.forEach(p=>{p.t-=dt;p.y-=40*dt;});S.pops=S.pops.filter(p=>p.t>0);
-}
+        function submitScore(score) {
+          const name = nameIn.value.trim();
+          if (score < 1) return;
+          if (!name) {
+            if (score > anonMem) {
+              anonMem = score;
+              setAnon(score);
+            }
+            const pos = rankFor(anonMem);
+            if (pos && score === anonMem) showClaim(score, pos);
+            else
+              status.textContent =
+                "Coloque seu nome acima para entrar no ranking.";
+            nameIn.classList.add("needs-name");
+            return;
+          }
+          const p = getPending();
+          if (
+            !p ||
+            p.name.toLowerCase() !== name.toLowerCase() ||
+            score > p.score
+          )
+            setPending({ name, score });
+          retries = 0;
+          trySend();
+        }
+        // Ao abrir: reenvia o melhor recorde local uma vez (recupera envios que falharam em versões anteriores)
+        (function syncLocalBest() {
+          const name = nameIn.value.trim();
+          let synced = 0;
+          try {
+            synced = +localStorage.getItem("voa-dumont-synced") || 0;
+          } catch (e) {}
+          if (name && best > synced) {
+            const p = getPending();
+            if (!p || best > p.score) setPending({ name, score: best });
+            try {
+              localStorage.setItem("voa-dumont-synced", best);
+            } catch (e) {}
+          }
+        })();
+        loadBoard().then(trySend);
+        setInterval(() => {
+          if (S.state !== "play") loadBoard();
+        }, 30000);
 
-function txt(s,x,y,size,color,align='center',shadow=true){
-  ctx.font=`700 ${size}px Silkscreen, 'Courier New', monospace`;ctx.textAlign=align;ctx.textBaseline='middle';
-  if(shadow){ctx.fillStyle='rgba(15,29,51,.85)';ctx.fillText(s,x+2,y+2);}
-  ctx.fillStyle=color;ctx.fillText(s,x,y);
-}
-function hud(){
-  if(S.state!=='menu')txt(String(S.score),W/2,54,40,'#ffffff');
-  const alt=Math.max(0,Math.round((GROUND-S.y)*8/10)*10);
-  ctx.fillStyle='rgba(15,29,51,.55)';ctx.fillRect(8,8,108,40);ctx.fillRect(W-96,8,88,40);
-  txt('ALT',14,20,10,'#93a6c2','left',false);txt(alt.toLocaleString('pt-BR')+' ft',14,36,13,'#f2b632','left',false);
-  txt('VEL',W-90,20,10,'#93a6c2','left',false);txt(Math.round(S.speed*.75)+' kt',W-90,36,13,'#f2b632','left',false);
-  S.pops.forEach(p=>txt('+1',p.x,p.y,16,'#ffe066'));
-}
-function panel(lines,y0){
-  const h=lines.length*30+36;
-  ctx.fillStyle='rgba(15,29,51,.88)';ctx.fillRect(40,y0,W-80,h);
-  ctx.strokeStyle='#f2b632';ctx.lineWidth=2;ctx.strokeRect(41,y0+1,W-82,h-2);
-  lines.forEach((l,i)=>txt(l.s,W/2,y0+30+i*30,l.z||14,l.c||'#e9eef6','center',false));
-}
-function overlays(){
-  if(S.state==='menu'){
-    panel([
-      {s:'VOA, DUMONT!',z:24,c:'#f2b632'},
-      {s:CRAFT[craftKey].name+' · '+CRAFT[craftKey].reg,z:12,c:'#93a6c2'},
-      {s:'Toque para decolar',z:14},
-      {s:'Recorde: '+best,z:12,c:'#93a6c2'}
-    ],150);
-  }else if(S.state==='over'){
-    const blink=Math.floor(S.overT*3)%2===0;
-    panel([
-      {s:'MAYDAY! MAYDAY!',z:20,c:blink?'#e0483e':'#ff8a7a'},
-      {s:'Obstáculos: '+S.score,z:14},
-      {s:'Recorde: '+best,z:14,c:S.newBest?'#ffe066':'#e9eef6'},
-      {s:S.newBest?'NOVO RECORDE!':breve(S.score),z:12,c:S.newBest?'#ffe066':'#93a6c2'},
-      {s:S.overT>.6?'Toque para voar de novo':' ',z:12,c:'#93a6c2'}
-    ],170);
-  }
-}
-function draw(dt){
-  drawBG(dt);
-  S.obs.forEach(o=>{drawCloud(o);o.type==='torre'?drawTower(o):drawMast(o);});
-  drawCraft();hud();overlays();
-}
-let last=performance.now();
-function frame(now){
-  const dt=Math.min(.033,(now-last)/1000);last=now;
-  update(dt);draw(dt);requestAnimationFrame(frame);
-}
-syncButtons();
-requestAnimationFrame(frame);
-})();
-</script>
-</body>
+        // ---------- Loop ----------
+        function crash() {
+          S.state = "over";
+          S.overT = 0;
+          sfx.crash();
+          if (S.score > best) {
+            best = S.score;
+            S.newBest = true;
+            try {
+              localStorage.setItem("voa-dumont-best", best);
+            } catch (e) {}
+          }
+          submitScore(S.score);
+          syncButtons();
+        }
+        function update(dt) {
+          S.t += dt;
+          const c = CRAFT[craftKey];
+          if (S.state === "menu") {
+            S.y = H / 2 + 50 + Math.sin(S.t * 2.2) * 10;
+            S.bgX += 90 * dt;
+            return;
+          }
+          if (S.state === "over") {
+            S.overT += dt;
+            if (S.y < GROUND - 10) {
+              S.vy += c.g * dt;
+              S.y = Math.min(GROUND - 10, S.y + S.vy * dt);
+            }
+            return;
+          }
+          S.speed = Math.min(230, 150 + S.score * 2.2);
+          S.bgX += S.speed * dt;
+          S.vy += c.g * dt;
+          S.y += S.vy * dt;
+          if (S.y < 14) {
+            S.y = 14;
+            S.vy = Math.max(0, S.vy);
+          }
+          S.obs.forEach((o) => {
+            o.x -= S.speed * dt;
+            if (o.bolt > 0) o.bolt -= dt;
+            else if (Math.random() < dt * 0.25) o.bolt = 0.12;
+          });
+          S.obs = S.obs.filter((o) => o.x > -OW - 10);
+          const last = S.obs[S.obs.length - 1];
+          if (!last || last.x < W - 230) spawn();
+          const box = craftBox();
+          for (const o of S.obs) {
+            const hb = hitbox(o);
+            if (hit(box, hb.top) || hb.bot.some((b) => hit(box, b))) {
+              crash();
+              return;
+            }
+            if (!o.passed && o.x + OW < PX - 17) {
+              o.passed = true;
+              S.score++;
+              sfx.point();
+              S.pops.push({ x: PX + 20, y: S.y - 20, t: 0.6 });
+            }
+          }
+          if (S.y + 7 >= GROUND) {
+            S.y = GROUND - 7;
+            crash();
+          }
+          S.pops.forEach((p) => {
+            p.t -= dt;
+            p.y -= 40 * dt;
+          });
+          S.pops = S.pops.filter((p) => p.t > 0);
+        }
+
+        function txt(s, x, y, size, color, align = "center", shadow = true) {
+          ctx.font = `700 ${size}px Silkscreen, 'Courier New', monospace`;
+          ctx.textAlign = align;
+          ctx.textBaseline = "middle";
+          if (shadow) {
+            ctx.fillStyle = "rgba(15,29,51,.85)";
+            ctx.fillText(s, x + 2, y + 2);
+          }
+          ctx.fillStyle = color;
+          ctx.fillText(s, x, y);
+        }
+        function hud() {
+          if (S.state !== "menu")
+            txt(String(S.score), W / 2, 54, 40, "#ffffff");
+          const alt = Math.max(0, Math.round(((GROUND - S.y) * 8) / 10) * 10);
+          ctx.fillStyle = "rgba(15,29,51,.55)";
+          ctx.fillRect(8, 8, 108, 40);
+          ctx.fillRect(W - 96, 8, 88, 40);
+          txt("ALT", 14, 20, 10, "#93a6c2", "left", false);
+          txt(
+            alt.toLocaleString("pt-BR") + " ft",
+            14,
+            36,
+            13,
+            "#f2b632",
+            "left",
+            false,
+          );
+          txt("VEL", W - 90, 20, 10, "#93a6c2", "left", false);
+          txt(
+            Math.round(S.speed * 0.75) + " kt",
+            W - 90,
+            36,
+            13,
+            "#f2b632",
+            "left",
+            false,
+          );
+          S.pops.forEach((p) => txt("+1", p.x, p.y, 16, "#ffe066"));
+        }
+        function panel(lines, y0) {
+          const h = lines.length * 30 + 36;
+          ctx.fillStyle = "rgba(15,29,51,.88)";
+          ctx.fillRect(40, y0, W - 80, h);
+          ctx.strokeStyle = "#f2b632";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(41, y0 + 1, W - 82, h - 2);
+          lines.forEach((l, i) =>
+            txt(
+              l.s,
+              W / 2,
+              y0 + 30 + i * 30,
+              l.z || 14,
+              l.c || "#e9eef6",
+              "center",
+              false,
+            ),
+          );
+        }
+        function overlays() {
+          if (S.state === "menu") {
+            panel(
+              [
+                { s: "VOA, DUMONT!", z: 24, c: "#f2b632" },
+                {
+                  s: CRAFT[craftKey].name + " · " + CRAFT[craftKey].reg,
+                  z: 12,
+                  c: "#93a6c2",
+                },
+                { s: "Toque para decolar", z: 14 },
+                { s: "Recorde: " + best, z: 12, c: "#93a6c2" },
+                nameIn.value.trim()
+                  ? { s: "Piloto: " + nameIn.value.trim(), z: 12, c: "#f2b632" }
+                  : {
+                      s: "Coloque seu nome abaixo p/ o ranking",
+                      z: 10,
+                      c: "#f2b632",
+                    },
+              ],
+              96,
+            );
+          } else if (S.state === "over") {
+            const blink = Math.floor(S.overT * 3) % 2 === 0;
+            panel(
+              [
+                {
+                  s: "MAYDAY! MAYDAY!",
+                  z: 20,
+                  c: blink ? "#e0483e" : "#ff8a7a",
+                },
+                { s: "Obstáculos: " + S.score, z: 14 },
+                {
+                  s: "Recorde: " + best,
+                  z: 14,
+                  c: S.newBest ? "#ffe066" : "#e9eef6",
+                },
+                {
+                  s: S.newBest ? "NOVO RECORDE!" : breve(S.score),
+                  z: 12,
+                  c: S.newBest ? "#ffe066" : "#93a6c2",
+                },
+                {
+                  s: S.overT > 0.6 ? "Toque para voar de novo" : " ",
+                  z: 12,
+                  c: "#93a6c2",
+                },
+              ],
+              170,
+            );
+          }
+        }
+        function draw(dt) {
+          drawBG(dt);
+          S.obs.forEach((o) => {
+            drawCloud(o);
+            o.type === "torre" ? drawTower(o) : drawMast(o);
+          });
+          drawCraft();
+          hud();
+          overlays();
+        }
+        let last = performance.now();
+        function frame(now) {
+          const dt = Math.min(0.033, (now - last) / 1000);
+          last = now;
+          update(dt);
+          draw(dt);
+          requestAnimationFrame(frame);
+        }
+        syncButtons();
+        requestAnimationFrame(frame);
+      })();
+    </script>
+  </body>
 </html>
