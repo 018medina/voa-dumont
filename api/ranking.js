@@ -1,7 +1,9 @@
 // Voa, Dumont! — ranking compartilhado (Vercel Serverless Function + Upstash Redis)
 //
 // GET  /api/ranking
-//      -> { top: [{ name, score }, ...] }  (top 5)
+//      -> { top: [...geral], week: [...semana], weekId, weekEnds, champion }  (top 5 de cada)
+//         A semana zera toda segunda às 00h (Brasília). O campeão da semana anterior
+//         fica guardado no Hall da Fama (hash voa-dumont:hall).
 //
 // POST /api/ranking  { "action": "start" }
 //      -> { run: "<bilhete>" }   Chamado na decolagem. O servidor anota a hora de início.
@@ -9,7 +11,7 @@
 // POST /api/ranking  { "run": "<bilhete>", "score": 87, "name": "Ana", "key": "<chave do piloto>" }
 //      Fecha a partida (confere se a pontuação é possível no tempo que passou) e,
 //      se vier nome, registra no ranking.
-//      -> { top: [...], improved: true|false }
+//      -> { top, week, ..., improved: true|false, improvedWeek: true|false }
 //
 // POST /api/ranking  { "run": "<bilhete>", "score": 87, "key": "..." }      (sem nome)
 //      -> { finished: true }   A partida fica guardada por 30 min para a pessoa colocar o nome depois.
@@ -62,13 +64,44 @@ async function redis(commands) {
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 
-async function topList() {
-  const [flat] = await redis([['ZREVRANGE', ZKEY, 0, TOP_N - 1, 'WITHSCORES']]);
+// ---------- Semanas (zera toda segunda 00h, horário de Brasília, UTC-3) ----------
+const BRT = 3 * 3600 * 1000, DAY = 86400 * 1000;
+function weekOf(ms) {
+  const d = new Date(ms - BRT);                          // relógio de Brasília
+  const back = (d.getUTCDay() + 6) % 7;                  // dias desde segunda
+  const mon = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - back);
+  const start = mon + BRT;                               // segunda 00h BRT em UTC
+  return { id: new Date(mon).toISOString().slice(0, 10), start, end: start + 7 * DAY };
+}
+const WKEY = (id) => P + 'week:' + id;  // sorted set do placar da semana
+const HALL = P + 'hall';                // hash: semana -> {"name","score"} do campeão
+
+async function topOf(zkey) {
+  const [flat] = await redis([['ZREVRANGE', zkey, 0, TOP_N - 1, 'WITHSCORES']]);
   if (!flat || !flat.length) return [];
   const keys = [], scores = [];
   for (let i = 0; i < flat.length; i += 2) { keys.push(flat[i]); scores.push(Number(flat[i + 1])); }
   const [names] = await redis([['HMGET', HKEY, ...keys]]);
   return keys.map((k, i) => ({ name: (names && names[i]) || k, score: scores[i] }));
+}
+
+// Campeão da semana passada: grava no Hall da Fama na primeira consulta da semana nova
+async function champion(now) {
+  const prev = weekOf(weekOf(now).start - 1);
+  let [raw] = await redis([['HGET', HALL, prev.id]]);
+  if (!raw) {
+    const [first] = await topOf(WKEY(prev.id));
+    if (!first) return null;
+    raw = JSON.stringify(first);
+    await redis([['HSETNX', HALL, prev.id, raw]]);
+  }
+  return { ...JSON.parse(raw), week: prev.id };
+}
+
+async function boards() {
+  const now = Date.now(), w = weekOf(now);
+  const [top, week, champ] = await Promise.all([topOf(ZKEY), topOf(WKEY(w.id)), champion(now)]);
+  return { top, week, weekId: w.id, weekEnds: w.end, champion: champ };
 }
 
 function cleanName(raw) {
@@ -194,12 +227,16 @@ async function submit(body, res) {
 
   // 5) Consome o bilhete e registra (só sobe, nunca desce)
   await redis([['DEL', runKey]]);
-  const [prev] = await redis([['ZSCORE', ZKEY, lower]]);
+  // A partida conta para a semana em que ela terminou
+  const wk = WKEY(weekOf(t.e || Date.now()).id);
+  const [prev, prevWeek] = await redis([['ZSCORE', ZKEY, lower], ['ZSCORE', wk, lower]]);
   const improved = prev === null || t.sc > Number(prev);
-  if (improved) {
-    await redis([['ZADD', ZKEY, t.sc, lower], ['HSET', HKEY, lower, name]]);
-  }
-  return res.status(200).json({ top: await topList(), improved, score: t.sc });
+  const improvedWeek = prevWeek === null || t.sc > Number(prevWeek);
+  const cmds = [['HSET', HKEY, lower, name]];
+  if (improved) cmds.push(['ZADD', ZKEY, t.sc, lower]);
+  if (improvedWeek) cmds.push(['ZADD', wk, t.sc, lower], ['EXPIRE', wk, 120 * 86400]);
+  await redis(cmds);
+  return res.status(200).json({ ...(await boards()), improved, improvedWeek, score: t.sc });
 }
 
 module.exports = async (req, res) => {
@@ -211,7 +248,7 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === 'GET') {
-      return res.status(200).json({ top: await topList() });
+      return res.status(200).json(await boards());
     }
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST');
@@ -232,3 +269,4 @@ module.exports = async (req, res) => {
 
 module.exports.isOffensive = isOffensive;
 module.exports.minSeconds = minSeconds;
+module.exports.weekOf = weekOf;
