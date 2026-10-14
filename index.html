@@ -291,7 +291,7 @@ const S={state:'menu',t:0,y:H/2+50,vy:0,score:0,speed:150,obs:[],spawnX:0,overT:
   bgX:0,cloudX:0,flash:0,pops:[],trail:[],unlockedNow:[]};
 
 function reset(){
-  S.state='menu';S.y=H/2+50;S.vy=0;S.score=0;S.speed=150;S.obs=[];S.overT=0;S.newBest=false;S.pops=[];S.trail=[];S.unlockedNow=[];
+  S.state='menu';S.y=H/2+50;S.vy=0;S.score=0;S.speed=150;S.obs=[];S.overT=0;S.newBest=false;S.pops=[];S.trail=[];S.unlockedNow=[];S.runP=null;
 }
 
 // ---------- Cenário ----------
@@ -475,7 +475,7 @@ function breve(s){
 
 // ---------- Entrada ----------
 function flap(){
-  if(S.state==='menu'){S.state='play';S.obs=[];spawn();}
+  if(S.state==='menu'){S.state='play';S.obs=[];spawn();S.runP=requestRun();}
   if(S.state==='play'){S.vy=CRAFT[craftKey].flap;sfx.flap();}
   else if(S.state==='over'&&S.overT>.6){hideClaim();reset();}
   syncButtons();
@@ -570,39 +570,66 @@ async function loadBoard(){
     board=(await r.json()).top||[];status.textContent='';renderBoard();
   }catch(e){status.textContent='Ranking indisponível no momento. Seu recorde local continua salvo.';}
 }
-// Recorde pendente: fica salvo no navegador até o servidor confirmar o recebimento.
-const PKEY='voa-dumont-pending';
-function getPending(){try{return JSON.parse(localStorage.getItem(PKEY)||'null')}catch(e){return null}}
-function setPending(p){try{p?localStorage.setItem(PKEY,JSON.stringify(p)):localStorage.removeItem(PKEY)}catch(e){}}
+// ---------- Envio de pontuação (bilhete por partida + nome com dono) ----------
+const RUN_TTL=29*60*1000; // o servidor guarda o bilhete por 30 min
+// Chave secreta do piloto: prova que este aparelho é dono do nome que registrou
+let pilotKey='';
+try{pilotKey=localStorage.getItem('voa-dumont-key')||''}catch(e){}
+if(!/^[a-f0-9]{32}$/.test(pilotKey)){
+  const b=new Uint8Array(16);crypto.getRandomValues(b);
+  pilotKey=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+  try{localStorage.setItem('voa-dumont-key',pilotKey)}catch(e){}
+}
+try{localStorage.removeItem('voa-dumont-pending');localStorage.removeItem('voa-dumont-synced')}catch(e){} // formato antigo
+
+// Pede o bilhete da partida na decolagem (não trava o jogo se a rede estiver lenta)
+function requestRun(){
+  return fetch(RANKING_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start'})})
+    .then(r=>r.ok?r.json():null).then(j=>j&&j.run||null).catch(()=>null);
+}
+
+// Fila de envios: sobrevive a recarregar a página e tenta de novo se a rede falhar
+const QKEY='voa-dumont-queue';
+let queue=[];try{queue=JSON.parse(localStorage.getItem(QKEY)||'[]')}catch(e){}
+queue=queue.filter(j=>j&&j.run&&Date.now()-j.ts<RUN_TTL);
+const saveQueue=()=>{try{localStorage.setItem(QKEY,JSON.stringify(queue))}catch(e){}};
 let sending=false,retries=0,retryTimer=null;
-async function trySend(){
-  const p=getPending();
-  if(!p||sending)return;
+function enqueue(job){queue.push(job);saveQueue();retries=0;pump();}
+async function pump(){
+  if(sending||!queue.length)return;
   sending=true;clearTimeout(retryTimer);
-  let retry=false;
+  const job=queue[0];let retry=false;
   try{
-    const r=await fetch(RANKING_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+    const body={run:job.run,score:job.score,key:pilotKey};if(job.name)body.name=job.name;
+    const r=await fetch(RANKING_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));
     if(r.ok){
-      const now=getPending();
-      if(now&&now.name===p.name&&now.score===p.score)setPending(null);
-      retries=0;board=j.top||board;renderBoard();
-      status.textContent=j.improved?'Recorde de '+p.score+' registrado no ranking!':'';
-    }else if(r.status===400){
-      setPending(null);status.textContent=j.error||'Recorde recusado pelo servidor.';
-    }else{
-      retry=true;status.textContent=(j.error||'Não foi possível enviar agora.')+' Tentando de novo…';
-    }
-  }catch(e){retry=true;status.textContent='Sem conexão com o ranking. Seu recorde será enviado assim que possível.';}
+      queue.shift();saveQueue();retries=0;
+      if(j.top){board=j.top;renderBoard();}
+      if(job.name)status.textContent=j.improved?'Recorde de '+job.score+' registrado no ranking!':'';
+    }else if(r.status===400||r.status===403){
+      queue.shift();saveQueue();
+      if(j.code==='name'||j.code==='owner'){
+        // Nome recusado: a partida continua guardada para registrar com outro nome
+        const a=getAnon();
+        if(!a||job.score>=a.score)setAnon({run:job.run,score:job.score,ts:job.ts});
+        nameIn.classList.add('needs-name');
+        status.textContent=j.error;
+        const g=getAnon();
+        if(S.state!=='play')showClaim(g.score,rankFor(g.score),j.error);
+      }else status.textContent=j.error||'Pontuação recusada pelo servidor.';
+    }else{retry=true;status.textContent=(j.error||'Não foi possível enviar agora.')+' Tentando de novo…';}
+  }catch(e){retry=true;status.textContent='Sem conexão com o ranking. A pontuação será enviada assim que possível.';}
   sending=false;
-  if(retry&&retries<8){retries++;retryTimer=setTimeout(trySend,4000*retries);}
-  else if(getPending()&&!retry)trySend(); // chegou um recorde novo durante o envio
+  if(retry){if(retries<8){retries++;retryTimer=setTimeout(pump,4000*retries);}}
+  else if(queue.length)pump();
 }
-// Pontuação feita sem nome: guardada até a pessoa se identificar
+
+// Partida feita sem nome: guardada (com o bilhete) até a pessoa se identificar
 const AKEY='voa-dumont-anon';
-function getAnon(){try{return +localStorage.getItem(AKEY)||0}catch(e){return 0}}
-function setAnon(v){try{v?localStorage.setItem(AKEY,v):localStorage.removeItem(AKEY)}catch(e){}}
-let anonMem=getAnon(); // cópia em memória caso o navegador bloqueie o armazenamento
+let anon=null;try{anon=JSON.parse(localStorage.getItem(AKEY)||'null')}catch(e){}
+function getAnon(){return anon&&anon.run&&Date.now()-anon.ts<RUN_TTL?anon:null;}
+function setAnon(v){anon=v;try{v?localStorage.setItem(AKEY,JSON.stringify(v)):localStorage.removeItem(AKEY)}catch(e){}}
 // Posição que a pontuação alcançaria no Top 5 (0 = fora)
 function rankFor(score){
   const pos=board.filter(r=>r.score>=score).length+1;
@@ -610,8 +637,8 @@ function rankFor(score){
 }
 const claim=document.getElementById('claim'),claimName=document.getElementById('claim-name'),
       claimTitle=document.getElementById('claim-title'),claimScore=document.getElementById('claim-score');
-function showClaim(score,pos){
-  claimTitle.textContent='Você ficaria em '+pos+'º lugar!';
+function showClaim(score,pos,err){
+  claimTitle.textContent=err||(pos?'Você ficaria em '+pos+'º lugar!':'Registre sua pontuação');
   claimScore.textContent=score+(score===1?' obstáculo':' obstáculos');
   claimName.value='';claim.hidden=false;
 }
@@ -622,12 +649,12 @@ function setName(name){
   nameIn.classList.toggle('needs-name',!name);
   return name;
 }
-// Quando a pessoa passa a ter nome, envia o que ela fez antes sem nome
+// Quando a pessoa passa a ter nome, registra a partida que ela fez sem nome
 function claimAnon(){
-  const name=nameIn.value.trim(),score=Math.max(anonMem,getAnon());
-  if(!name||score<1)return;
-  setAnon(0);anonMem=0;
-  submitScore(score);
+  const name=nameIn.value.trim(),a=getAnon();
+  if(!name||!a)return;
+  setAnon(null);
+  enqueue({run:a.run,score:a.score,name,ts:a.ts});
 }
 claim.addEventListener('submit',e=>{
   e.preventDefault();
@@ -636,37 +663,27 @@ claim.addEventListener('submit',e=>{
 });
 document.getElementById('claim-skip').onclick=()=>{
   hideClaim();nameIn.classList.add('needs-name');
-  status.textContent='Seu recorde ficou guardado. Coloque seu nome no campo acima quando quiser registrá-lo.';
+  status.textContent='Sua pontuação fica guardada por 30 minutos. Coloque seu nome no campo acima para registrá-la.';
 };
 claim.addEventListener('pointerdown',e=>e.stopPropagation());
 nameIn.addEventListener('change',()=>{setName(nameIn.value);if(nameIn.value)claimAnon();renderBoard();});
 
-function submitScore(score){
-  const name=nameIn.value.trim();
+async function submitScore(score,runP){
   if(score<1)return;
-  if(!name){
-    if(score>anonMem){anonMem=score;setAnon(score);}
-    const pos=rankFor(anonMem);
-    if(pos&&score===anonMem)showClaim(score,pos);
-    else status.textContent='Coloque seu nome acima para entrar no ranking.';
-    nameIn.classList.add('needs-name');
-    return;
-  }
-  const p=getPending();
-  if(!p||p.name.toLowerCase()!==name.toLowerCase()||score>p.score)setPending({name,score});
-  retries=0;trySend();
+  const run=await runP;
+  if(!run){status.textContent='Esta partida não valeu para o ranking: sem conexão na decolagem.';return;}
+  const name=nameIn.value.trim(),ts=Date.now();
+  if(name){enqueue({run,score,name,ts});return;}
+  // Sem nome: fecha a partida no servidor agora (trava a pontuação) e guarda para registrar depois
+  enqueue({run,score,name:null,ts});
+  const a=getAnon();
+  if(!a||score>a.score)setAnon({run,score,ts});
+  const best0=getAnon(),pos=rankFor(best0.score);
+  if(pos&&best0.run===run&&S.state!=='play')showClaim(score,pos);
+  else status.textContent='Coloque seu nome acima para entrar no ranking.';
+  nameIn.classList.add('needs-name');
 }
-// Ao abrir: reenvia o melhor recorde local uma vez (recupera envios que falharam em versões anteriores)
-(function syncLocalBest(){
-  const name=nameIn.value.trim();let synced=0;
-  try{synced=+localStorage.getItem('voa-dumont-synced')||0}catch(e){}
-  if(name&&best>synced){
-    const p=getPending();
-    if(!p||best>p.score)setPending({name,score:best});
-    try{localStorage.setItem('voa-dumont-synced',best)}catch(e){}
-  }
-})();
-loadBoard().then(trySend);
+loadBoard().then(pump);
 setInterval(()=>{if(S.state!=='play')loadBoard();},30000);
 
 // ---------- Loop ----------
@@ -680,7 +697,7 @@ function crash(){
     for(const c in SKINS)SKINS[c].forEach(sk=>{if(sk.at>prev&&sk.at<=best)S.unlockedNow.push(sk);});
     if(S.unlockedNow.length){sfx.unlock();renderSkins();}
   }
-  submitScore(S.score);
+  submitScore(S.score,S.runP);
   syncButtons();
 }
 function update(dt){
